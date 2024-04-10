@@ -1,4 +1,6 @@
 import random
+import struct
+
 class MemorySubsystem:
     def __init__(self, l1_instruction_cache, l1_data_cache, l2_cache, dram):
         self.l1_instruction_cache = l1_instruction_cache
@@ -21,20 +23,20 @@ class MemorySubsystem:
         total_time_s = self.time_ns * 1e-9
 
         # Calculate idle energy for each component
-        # Note: This example assumes that energy_consumed_pj attributes are reset to zero at the start of the simulation
+        # Note: This example assumes that energy_consumed attributes are reset to zero at the start of the simulation
         # and only include active energy consumption during accesses.
-        self.l1_instruction_cache.energy_consumed_pj += (self.l1_instruction_cache.idle_power_w * total_time_s) * 1e12
-        self.l1_data_cache.energy_consumed_pj += (self.l1_data_cache.idle_power_w * total_time_s) * 1e12
-        self.l2_cache.energy_consumed_pj += (self.l2_cache.idle_power_w * total_time_s) * 1e12
-        self.dram.energy_consumed_pj += (self.dram.idle_power_w * total_time_s) * 1e12
+        self.l1_instruction_cache.energy_consumed += (self.l1_instruction_cache.idle_power * total_time_s) * 1e12
+        self.l1_data_cache.energy_consumed += (self.l1_data_cache.idle_power * total_time_s) * 1e12
+        self.l2_cache.energy_consumed += (self.l2_cache.idle_power * total_time_s) * 1e12
+        self.dram.energy_consumed += (self.dram.idle_power * total_time_s) * 1e12
     
     def calculate_performance_metrics(self):
         # Calculate and print performance metrics at the end of the simulation
         total_hits = self.l1_instruction_hits + self.l1_data_hits + self.l2_hits
         total_misses = self.l1_instruction_misses + self.l1_data_misses + self.l2_misses
         total_accesses = total_hits + total_misses
-        total_energy = self.l1_instruction_cache.energy_consumed_pj + self.l1_data_cache.energy_consumed_pj + \
-                       self.l2_cache.energy_consumed_pj + self.dram.energy_consumed_pj
+        total_energy = self.l1_instruction_cache.energy_consumed + self.l1_data_cache.energy_consumed + \
+                       self.l2_cache.energy_consumed + self.dram.energy_consumed
         average_access_time_ns = self.time_ns / total_accesses if total_accesses else 0
 
         print(f"Total Hits: {total_hits}")
@@ -87,9 +89,47 @@ class MemorySubsystem:
         self.time_ns += time_taken
         return hit, time_taken, energy_consumed
 
-    def simulate(self, trace_file):
-        # Read and process the trace file to simulate memory accesses
+        
+        
+    def simulate(self, trace_file_path):
+        # Reset counters and time at the start of each simulation
+        self.time_ns = 0
+        self.l1_instruction_hits = 0
+        self.l1_instruction_misses = 0
+        self.l1_data_hits = 0
+        self.l1_data_misses = 0
+        self.l2_hits = 0
+        self.l2_misses = 0
+        self.dram_accesses = 0
+
+        # Assuming each address is 4 bytes (32 bits), adjust according to actual format
+        address_size = 4
+
+        # Open and process the trace file in binary mode
+        with open(trace_file_path, 'rb') as file:
+            while True:
+                # Read the operation code (assuming 1 byte) followed by the address
+                operation_code = file.read(1)
+                hex_address = file.read(address_size)
+                if not hex_address or len(hex_address) < address_size:
+                    break  # End of file or incomplete data
+
+                # Convert binary data to integer
+                # Adjust the format string according to your file's actual format and endianness
+                address = struct.unpack('<I', hex_address)[0]
+
+                # Determine the operation based on the operation code
+                # This is just an example, adjust according to how your file encodes operations
+                operation = 'read' if operation_code == b'\x00' else 'write'
+
+                # Simulate memory access
+                # This example does not distinguish between instruction/data accesses
+                is_instruction = False
+                self.access_memory(address, operation, is_instruction)
+
+        # After processing all traces, calculate and display performance metrics
         self.calculate_idle_energy()
+        self.calculate_performance_metrics()
 
 
 class CacheLine:
@@ -99,45 +139,34 @@ class CacheLine:
         self.data = [None] * 64  # Assuming data size is equivalent to the cache line size
 
 class DirectMappedCache:
-    def __init__(self, size_kb, line_size, access_time_ns, idle_power_w, active_power_w):
+    def __init__(self, size_kb, line_size, access_time, idle_power, active_power):
         self.size_kb = size_kb
         self.line_size = line_size
-        self.access_time_ns = access_time_ns
-        self.idle_power_w = idle_power_w
-        self.active_power_w = active_power_w
+        self.access_time = access_time  # Make sure this matches what you're passing
+        self.idle_power = idle_power
+        self.active_power = active_power
         self.num_lines = (size_kb * 1024) // line_size
         self.lines = [CacheLine() for _ in range(self.num_lines)]
-        self.energy_consumed_pj = 0  # Energy consumed in picojoules
+        self.energy_consumed = 0  # Energy consumed in picojoules
 
     def access(self, address, mode):
         index = (address // self.line_size) % self.num_lines
         tag = address // (self.line_size * self.num_lines)
         line = self.lines[index]
-
-        # Calculate active energy consumed for this access
-        energy_per_access_pj = (self.active_power_w * (self.access_time_ns * 1e-9)) * 1e12
-        self.energy_consumed_pj += energy_per_access_pj
+        # Correcting the calculation of energy_per_access_pj
+        energy_per_access_pj = (self.active_power * (self.access_time * 1e-9)) * 1e12  # Assuming active_power is in watts and access_time is in ns
+        self.energy_consumed += energy_per_access_pj
 
         if line.valid and line.tag == tag:
-            # Cache hit
             hit = True
         else:
-            # Cache miss
             hit = False
-
             if mode == 'write':
-                # For write misses, simulate a read operation first to bring the entire cache line into cache
-                # This simulates bringing data into the cache before it is modified (write-allocate policy)
-                # Note: In a real implementation, this might involve invoking a lower memory level's access method.
-                # For simplicity, we'll just account for the additional time and energy here without actual data movement.
-                self.energy_consumed_pj += energy_per_access_pj  # Additional energy for the read before write
-                self.time_ns += self.access_time_ns  # Additional time for the read before write
-            
-            # Update the cache line (applicable for both read and write misses)
+                self.energy_consumed += energy_per_access_pj  # For write-allocate policy
             line.valid = True
             line.tag = tag
 
-        return hit, self.access_time_ns, energy_per_access_pj
+        return hit, self.access_time, energy_per_access_pj
 
 
 
@@ -154,67 +183,48 @@ class SetAssociativeCache:
         self.energy_consumed = 0
 
     def access(self, address, mode):
+    # Similar corrections as DirectMappedCache for energy calculation
         set_index = (address // self.line_size) % len(self.sets)
         tag = address // (self.line_size * len(self.sets))
         cache_set = self.sets[set_index]
-
-        # Initially assume a miss
         hit = False
-        energy_per_access_pj = (self.active_power_w * (self.access_time_ns * 1e-9)) * 1e12
+        energy_per_access_pj = (self.active_power * (self.access_time * 1e-9)) * 1e12
 
-        # Search for the tag within the set
         for line in cache_set:
             if line.valid and line.tag == tag:
                 hit = True
-                # If it's a hit, no need to replace a cache line, just consume energy for access
                 self.energy_consumed += energy_per_access_pj
                 break
 
         if not hit:
-            # Cache miss
-            # Select a line for replacement based on the replacement policy (random in this case)
             line_to_update = random.choice(cache_set)
-            
-            # For write misses, the read before write policy implies an additional read operation
             if mode == 'write':
-                # Double the energy for read before write operation
-                energy_per_access_pj *= 2
-
-            # Update the cache line
+                energy_per_access_pj *= 2  # For write-allocate policy
             line_to_update.valid = True
             line_to_update.tag = tag
-            # The actual data movement isn't simulated, but energy for fetching the data is accounted for
-
             self.energy_consumed += energy_per_access_pj
 
-        return hit, self.access_time_ns, energy_per_access_pj
+        return hit, self.access_time, energy_per_access_pj
+
 
 
 class DRAM:
-    def __init__(self, size_gb, access_time_ns, idle_power_w, active_power_w, transfer_penalty_pj):
+    def __init__(self, size_gb, access_time, idle_power, active_power, transfer_penalty):
         self.size_gb = size_gb
-        self.access_time_ns = access_time_ns
-        self.idle_power_w = idle_power_w
-        self.active_power_w = active_power_w
-        self.transfer_penalty_pj = transfer_penalty_pj
-        self.energy_consumed_pj = 0  # Energy consumed in picojoules
+        self.access_time = access_time
+        self.idle_power = idle_power
+        self.active_power = active_power
+        self.transfer_penalty = transfer_penalty
+        self.energy_consumed = 0  # Energy consumed in picojoules
 
     def access(self, address, mode):
-        # All DRAM accesses are treated as misses since there's no "hit" concept in DRAM
+        # Corrections for the use of access_time and active_power to match definitions
+        active_energy_pj = (self.active_power * (self.access_time * 1e-9)) * 1e12
+     # Assuming transfer_penalty is given in picojoules directly
+        total_energy_pj = active_energy_pj + self.transfer_penalty
 
-        # Calculate energy consumed for this access
-        # Active energy: Convert power consumption (watts) to energy (joules) based on access time (seconds),
-        # then convert joules to picojoules (1 joule = 1e12 picojoules)
-        active_energy_pj = (self.active_power_w * (self.access_time_ns * 1e-9)) * 1e12
-
-        # Add transfer penalty for accessing DRAM
-        total_energy_pj = active_energy_pj + self.transfer_penalty_pj
-
-        # Update total energy consumed
-        self.energy_consumed_pj += total_energy_pj
-
-        # DRAM access is always considered a miss, so there's no 'hit' variable
-        return False, self.access_time_ns, total_energy_pj
+        self.energy_consumed += total_energy_pj
+        return False, self.access_time, total_energy_pj
 
 # Initializing caches and DRAM with the provided specifications
 l1_instruction_cache = DirectMappedCache(size_kb=32, line_size=64, access_time=0.5, idle_power=0.5, active_power=1)
@@ -223,5 +233,5 @@ l2_cache = SetAssociativeCache(size_kb=256, line_size=64, assoc=4, access_time=5
 dram = DRAM(size_gb=8, access_time=50, idle_power=0.8, active_power=4, transfer_penalty=640)
 
 memory_system = MemorySubsystem(l1_instruction_cache, l1_data_cache, l2_cache, dram)
-# Here you would call `memory_system.simulate("your_trace_file.din")`
+memory_system.simulate("C:\\Users\\foodrunner\\Desktop\\Traces\\Traces\\Spec_Benchmark\\013.spice2g6.din.Z")
 
