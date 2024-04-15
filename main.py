@@ -252,5 +252,28 @@ def run_simulation_on_all_traces(directory, memory_system):
             memory_system.simulate(file_path)
             print(f"Finished simulating file: {file_path}\n")
 
-directory_path = "/Users/divyanitin/Desktop/project1-eec/project1-eec-2/Traces/Spec_Benchmark"
+directory_path = "C:\\Users\\foodrunner\\Desktop\\energyshit\\project1-eec-1\\Traces\\Spec_Benchmark"
 run_simulation_on_all_traces(directory_path, memory_system)
+
+
+
+def run_simulation_on_all_traces_AL(directory, base_l1_instruction_cache, base_l1_data_cache, base_dram):
+    associativity_levels = [2, 4, 8]
+    for assoc in associativity_levels:
+        print(f"Running simulations with L2 cache associativity level: {assoc}")
+        l2_cache = SetAssociativeCache(size_kb=256, line_size=64, assoc=assoc, access_time=5, idle_power=0.8, active_power=2, transfer_penalty=5)
+        memory_system = MemorySubsystem(base_l1_instruction_cache, base_l1_data_cache, l2_cache, base_dram)
+        for filename in os.listdir(directory):
+            file_path = os.path.join(directory, filename)
+            if file_path.endswith('.din') or file_path.endswith('.Z'):
+                print(f"Simulating file: {file_path}")
+                memory_system.simulate(file_path)
+                print(f"Finished simulating file: {file_path}\n")
+
+directory_path = "C:\\Users\\foodrunner\\Desktop\\energyshit\\project1-eec-1\\Traces\\Spec_Benchmark"
+l1_instruction_cache = DirectMappedCache(size_kb=32, line_size=64, access_time=0.5, idle_power=0.5, active_power=1)
+l1_data_cache = DirectMappedCache(size_kb=32, line_size=64, access_time=0.5, idle_power=0.5, active_power=1)
+dram = DRAM(size_gb=8, access_time=50, idle_power=0.8, active_power=4, transfer_penalty=640)
+
+run_simulation_on_all_traces_AL(directory_path, l1_instruction_cache, l1_data_cache, dram)
+
