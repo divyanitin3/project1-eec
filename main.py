@@ -48,7 +48,6 @@ class MemorySubsystem:
 
 
     def access_memory(self, address, mode, is_instruction=False):
-        # Modify this method to increment hit/miss counters based on the access results
         target_cache = self.l1_instruction_cache if is_instruction else self.l1_data_cache
         hit, time_taken, energy_consumed = target_cache.access(address, mode)
 
@@ -66,28 +65,17 @@ class MemorySubsystem:
         if not hit:
             # L2 cache access if L1 miss
             hit, l2_time, l2_energy = self.l2_cache.access(address, mode)
-            if hit:
-                self.l2_hits += 1
-            else:
-                self.l2_misses += 1
-                self.dram_accesses += 1  # Increment DRAM access on L2 miss
-        
-        if not hit:
-            # L2 cache access if L1 miss
-            hit, l2_time, l2_energy = self.l2_cache.access(address, mode)
             time_taken += l2_time
             energy_consumed += l2_energy
-            
-            if not hit:
-                # DRAM access if L2 miss
-                _, dram_time, dram_energy = self.dram.access(address, mode)
-                time_taken += dram_time
-                energy_consumed += dram_energy
         
+        if not hit:
+            # DRAM access if L2 miss
+            _, dram_time, dram_energy = self.dram.access(address, mode)
+            time_taken += dram_time
+            energy_consumed += dram_energy
+
         self.time_ns += time_taken
         return hit, time_taken, energy_consumed
-
-        
     
     def simulate(self, trace_file_path):
         self.time_ns = 0
@@ -249,5 +237,5 @@ l2_cache = SetAssociativeCache(size_kb=256, line_size=64, assoc=4, access_time=5
 dram = DRAM(size_gb=8, access_time=50, idle_power=0.8, active_power=4, transfer_penalty=640)
 
 memory_system = MemorySubsystem(l1_instruction_cache, l1_data_cache, l2_cache, dram)
-memory_system.simulate("C:\\Users\\foodrunner\\Desktop\\Traces\\Traces\\Spec_Benchmark\\094.fpppp.din.Z")
+memory_system.simulate("/Users/divyanitin/Desktop/project1-eec/project1-eec-2/Traces/Spec_Benchmark/094.fpppp.din")
 
