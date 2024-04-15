@@ -1,6 +1,6 @@
 import random
-import struct
 import subprocess
+import os
 
 
 class MemorySubsystem:
@@ -10,7 +10,6 @@ class MemorySubsystem:
         self.l2_cache = l2_cache
         self.dram = dram
         self.time_ns = 0 
-        
         self.l1_instruction_hits = 0
         self.l1_instruction_misses = 0
         self.l1_data_hits = 0
@@ -63,16 +62,18 @@ class MemorySubsystem:
                 self.l1_data_misses += 1
 
         if not hit:
-            # L2 cache access if L1 miss
             hit, l2_time, l2_energy = self.l2_cache.access(address, mode)
             time_taken += l2_time
             energy_consumed += l2_energy
-        
-        if not hit:
-            # DRAM access if L2 miss
-            _, dram_time, dram_energy = self.dram.access(address, mode)
-            time_taken += dram_time
-            energy_consumed += dram_energy
+            if hit:
+                self.l2_hits += 1
+            else:
+                self.l2_misses += 1
+                hit, dram_time, dram_energy = self.dram.access(address, mode)
+                time_taken += dram_time
+                energy_consumed += dram_energy
+                if not hit:
+                    self.dram_accesses += 1
 
         self.time_ns += time_taken
         return hit, time_taken, energy_consumed
@@ -86,32 +87,23 @@ class MemorySubsystem:
         self.l2_hits = 0
         self.l2_misses = 0
         self.dram_accesses = 0
-
-    # Check if the file is a .Z file and handle accordingly
         if trace_file_path.endswith('.Z'):
-        # Use 'gunzip' with the '-c' option to output decompressed data to stdout
             with subprocess.Popen(['gunzip', '-c', trace_file_path], stdout=subprocess.PIPE) as proc:
                 file = proc.stdout
         else:
             file = open(trace_file_path, 'r')
-
-    # Ensure the file stream is treated as a text stream
         with file:
             for line in file:
-                # Decode bytes to string if using subprocess
                 if isinstance(line, bytes):
                     line = line.decode('utf-8')
-
                 parts = line.strip().split()
                 if len(parts) < 2:
-                    continue  # Skip lines that do not have enough data
-
+                    continue 
                 try:
                     operation_code = int(parts[0])
-                    address = int(parts[1], 16)  # Assuming the address is in hexadecimal
+                    address = int(parts[1], 16)
                 except ValueError:
-                    continue  # Handle cases where conversion fails
-
+                    continue
                 if operation_code == 0:  # Memory read
                     self.access_memory(address, 'read')
                 elif operation_code == 1:  # Memory write
@@ -126,7 +118,7 @@ class MemorySubsystem:
                     self.l2_cache.flush()
 
         if not trace_file_path.endswith('.Z'):
-            file.close()  # Only manually close if not using subprocess
+            file.close()
 
         self.calculate_idle_energy()
         self.calculate_performance_metrics()
@@ -136,41 +128,47 @@ class CacheLine:
     def __init__(self):
         self.valid = False
         self.tag = None
-        self.data = [None] * 64  # Assuming data size is equivalent to the cache line size
+        self.data = [None] * 64
 
 class DirectMappedCache:
     def __init__(self, size_kb, line_size, access_time, idle_power, active_power):
         self.size_kb = size_kb
         self.line_size = line_size
-        self.access_time = access_time  # Make sure this matches what you're passing
+        self.access_time = access_time 
         self.idle_power = idle_power
         self.active_power = active_power
         self.num_lines = (size_kb * 1024) // line_size
         self.lines = [CacheLine() for _ in range(self.num_lines)]
-        self.energy_consumed = 0  # Energy consumed in picojoules
+        self.energy_consumed = 0
 
     def access(self, address, mode):
         index = (address // self.line_size) % self.num_lines
         tag = address // (self.line_size * self.num_lines)
         line = self.lines[index]
-        # Correcting the calculation of energy_per_access_pj
         energy_per_access_pj = (self.active_power * (self.access_time * 1e-9)) * 1e12
         self.energy_consumed += energy_per_access_pj
 
         if line.valid and line.tag == tag:
-            hit = True
-        else:
-            hit = False
             if mode == 'write':
-                self.energy_consumed += energy_per_access_pj  # For write-allocate policy
+                line.dirty = True
+            return True, self.access_time, energy_per_access_pj
+        else:
+            if line.valid and line.dirty:
+                self.write_back(line)
             line.valid = True
+            line.dirty = (mode == 'write')
             line.tag = tag
-
-        return hit, self.access_time, energy_per_access_pj
+            return False, self.access_time, energy_per_access_pj
     
+    def write_back(self, line):
+        self.energy_consumed += (self.active_power * (self.access_time * 1e-9)) * 1e12
+
     def flush(self):
         for line in self.lines:
+            if line.valid and line.dirty:
+                self.write_back(line)
             line.valid = False
+            line.dirty = False
 
 class SetAssociativeCache:
     def __init__(self, size_kb, line_size, assoc, access_time, idle_power, active_power, transfer_penalty):
@@ -185,7 +183,6 @@ class SetAssociativeCache:
         self.energy_consumed = 0
 
     def access(self, address, mode):
-    # Similar corrections as DirectMappedCache for energy calculation
         set_index = (address // self.line_size) % len(self.sets)
         tag = address // (self.line_size * len(self.sets))
         cache_set = self.sets[set_index]
@@ -195,25 +192,35 @@ class SetAssociativeCache:
         for line in cache_set:
             if line.valid and line.tag == tag:
                 hit = True
+                if mode == 'write':
+                    line.dirty = True
                 self.energy_consumed += energy_per_access_pj
                 break
 
         if not hit:
-            line_to_update = random.choice(cache_set)
-            if mode == 'write':
-                energy_per_access_pj *= 2  # For write-allocate policy
+            line_to_update = self.choose_line_to_evict(cache_set)
+            if line_to_update.valid and line_to_update.dirty:
+                self.write_back(line_to_update)
             line_to_update.valid = True
+            line_to_update.dirty = (mode == 'write')
             line_to_update.tag = tag
             self.energy_consumed += energy_per_access_pj
 
         return hit, self.access_time, energy_per_access_pj
 
-    
-    def flush(self):
-        for set in self.sets:
-            for line in set:
-                line.valid = False
+    def choose_line_to_evict(self, cache_set):
+        return random.choice(cache_set)
 
+    def write_back(self, line):
+        self.energy_consumed += (self.active_power * (self.access_time * 1e-9)) * 1e12
+
+    def flush(self):
+        for cache_set in self.sets:
+            for line in cache_set:
+                if line.valid and line.dirty:
+                    self.write_back(line)
+                line.valid = False
+                line.dirty = False
 
 class DRAM:
     def __init__(self, size_gb, access_time, idle_power, active_power, transfer_penalty):
@@ -227,7 +234,6 @@ class DRAM:
     def access(self, address, mode):
         active_energy_pj = (self.active_power * (self.access_time * 1e-9)) * 1e12
         total_energy_pj = active_energy_pj + self.transfer_penalty
-
         self.energy_consumed += total_energy_pj
         return False, self.access_time, total_energy_pj
 
@@ -237,5 +243,14 @@ l2_cache = SetAssociativeCache(size_kb=256, line_size=64, assoc=4, access_time=5
 dram = DRAM(size_gb=8, access_time=50, idle_power=0.8, active_power=4, transfer_penalty=640)
 
 memory_system = MemorySubsystem(l1_instruction_cache, l1_data_cache, l2_cache, dram)
-memory_system.simulate("/Users/divyanitin/Desktop/project1-eec/project1-eec-2/Traces/Spec_Benchmark/094.fpppp.din")
 
+def run_simulation_on_all_traces(directory, memory_system):
+    for filename in os.listdir(directory):
+        file_path = os.path.join(directory, filename)
+        if file_path.endswith('.din') or file_path.endswith('.Z'):
+            print(f"Simulating file: {file_path}")
+            memory_system.simulate(file_path)
+            print(f"Finished simulating file: {file_path}\n")
+
+directory_path = "/Users/divyanitin/Desktop/project1-eec/project1-eec-2/Traces/Spec_Benchmark"
+run_simulation_on_all_traces(directory_path, memory_system)
