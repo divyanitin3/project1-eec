@@ -1,0 +1,65 @@
+Results for 008.espresso.din:
+Average Time (ns): 515624.0, Std Dev Time (ns): 13389.436507934155
+Average Energy (pJ): 1880745312.0000002, Std Dev Energy (pJ): 88123292.04972842
+Results for 013.spice2g6.din:
+Average Time (ns): 518663.5, Std Dev Time (ns): 14254.874653566369
+Average Energy (pJ): 1896061772.0, Std Dev Energy (pJ): 96535560.83634098
+Results for 015.doduc.din:
+Average Time (ns): 550102.0, Std Dev Time (ns): 30556.81377005426
+Average Energy (pJ): 2079039040.0000002, Std Dev Energy (pJ): 226756936.52029267
+Results for 022.li.din:
+Average Time (ns): 535984.0, Std Dev Time (ns): 8523.904703179693
+Average Energy (pJ): 1973849316.0, Std Dev Energy (pJ): 62134801.24149413
+Results for 023.eqntott.din:
+Average Time (ns): 517420.5, Std Dev Time (ns): 21561.04260131118
+Average Energy (pJ): 1909498300.0, Std Dev Energy (pJ): 175157414.1948714
+Results for 026.compress.din:
+Average Time (ns): 732733.5, Std Dev Time (ns): 38006.691081235214
+Average Energy (pJ): 3801929284.0000005, Std Dev Energy (pJ): 317922931.7464298
+Results for 034.mdljdp2.din:
+Average Time (ns): 515499.0, Std Dev Time (ns): 13422.346375437575
+Average Energy (pJ): 1896656376.0, Std Dev Energy (pJ): 132037558.5142688
+Results for 039.wave5.din:
+Average Time (ns): 505333.0, Std Dev Time (ns): 11251.790771053093
+Average Energy (pJ): 1842139816.0, Std Dev Energy (pJ): 105901656.73586154
+Results for 047.tomcatv.din:
+Average Time (ns): 921939.0, Std Dev Time (ns): 22918.57771425715
+Average Energy (pJ): 5927275784.0, Std Dev Energy (pJ): 180902266.1651108
+Results for 048.ora.din:
+Average Time (ns): 503693.0, Std Dev Time (ns): 7732.16772824916
+Average Energy (pJ): 1831438816.0, Std Dev Energy (pJ): 78209514.25913388
+Results for 085.gcc.din:
+Average Time (ns): 616712.0, Std Dev Time (ns): 37280.05269428799
+Average Energy (pJ): 2468159056.0, Std Dev Energy (pJ): 369095892.1464751
+Results for 089.su2cor.din:
+Average Time (ns): 538228.5, Std Dev Time (ns): 36739.35190032012
+Average Energy (pJ): 2083389884.0000002, Std Dev Energy (pJ): 349195988.55512714
+Results for 090.hydro2d.din:
+Average Time (ns): 737927.0, Std Dev Time (ns): 46946.82897822931
+Average Energy (pJ): 3766321416.0, Std Dev Energy (pJ): 456954313.43878746
+Results for 093.nasa7.din:
+Average Time (ns): 527396.0, Std Dev Time (ns): 18536.46823007135
+Average Energy (pJ): 1987683856.0000002, Std Dev Energy (pJ): 179780150.54652217
+Results for 094.fpppp.din:
+Average Time (ns): 574912.5, Std Dev Time (ns): 18404.505977552828
+Average Energy (pJ): 2197013788.0, Std Dev Energy (pJ): 182207987.77896777
+
+
+
+Filename                         Avg Time (ns)    Time Std Dev (ns)      Avg Energy (pJ)  Energy Std Dev (pJ)
+---------------------------------------------------------------------------------------------------------
+008.espresso.din                     515574.00             13336.44        1880274224.00          87606577.91
+013.spice2g6.din                     518648.50             14190.92        1895802068.00          95676189.17
+015.doduc.din                        550102.00             30392.55        2079701152.00         226370789.80
+022.li.din                           536164.00              8890.81        1975621476.00          65903174.24
+023.eqntott.din                      517330.50             21638.62        1908562060.00         176122126.14
+026.compress.din                     732963.50             36649.49        3804473492.00         305752401.57
+034.mdljdp2.din                      515814.00             13726.43        1899080496.00         133419449.98
+039.wave5.din                        505343.00             11369.78        1842085560.00         106579703.91
+047.tomcatv.din                      921429.00             23011.12        5921535704.00         180071591.40
+048.ora.din                          503853.00              7787.31        1832637312.00          78528947.44
+085.gcc.din                          616267.00             37527.72        2463390536.00         370880360.06
+089.su2cor.din                       538183.50             36647.91        2081487188.00         346534611.40
+090.hydro2d.din                      737757.00             48381.22        3765237368.00         467223953.24
+093.nasa7.din                        527721.00             19214.77        1990073784.00         185380866.44
+094.fpppp.din                        574232.50             17678.76        2191293180.00         174876613.92

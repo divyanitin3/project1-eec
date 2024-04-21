@@ -271,6 +271,7 @@ dram = DRAM(size_gb=8, access_time=50, idle_power=0.8, active_power=4, transfer_
 
 #run_simulation_on_all_traces_AL(directory_path, l1_instruction_cache, l1_data_cache, dram)
 
+
 def run_simulation_multiple_times(directory, memory_system, num_runs=10):
     results = {}  # Dictionary to hold results
 
@@ -283,17 +284,36 @@ def run_simulation_multiple_times(directory, memory_system, num_runs=10):
             # Lists to hold metrics for multiple runs
             times = []
             energies = []
+            l1_instruction_hits = []
+            l1_instruction_misses = []
+            l1_data_hits = []
+            l1_data_misses = []
+            l2_hits = []
+            l2_misses = []
+            dram_accesses = []
 
             for _ in range(num_runs):
                 memory_system.simulate(file_path)  # Run the simulation
+
+                # Append time and energy data
                 times.append(memory_system.time_ns)
-                energies.append(memory_system.l1_instruction_cache.energy_consumed + 
+                energies.append(memory_system.l1_instruction_cache.energy_consumed +
                                 memory_system.l1_data_cache.energy_consumed +
                                 memory_system.l2_cache.energy_consumed +
                                 memory_system.dram.energy_consumed)
+
+                # Append hit and miss data for caches
+                l1_instruction_hits.append(memory_system.l1_instruction_hits)
+                l1_instruction_misses.append(memory_system.l1_instruction_misses)
+                l1_data_hits.append(memory_system.l1_data_hits)
+                l1_data_misses.append(memory_system.l1_data_misses)
+                l2_hits.append(memory_system.l2_hits)
+                l2_misses.append(memory_system.l2_misses)
+                dram_accesses.append(memory_system.dram_accesses)
+
                 memory_system.reset_metrics()  # Reset metrics after each run
 
-            # Calculate mean and standard deviation
+            # Calculate mean and standard deviation for time and energy
             avg_time = statistics.mean(times)
             std_dev_time = statistics.stdev(times)
             avg_energy = statistics.mean(energies)
@@ -308,11 +328,10 @@ def run_simulation_multiple_times(directory, memory_system, num_runs=10):
             }
 
             print(f"Finished simulations for: {file_path}")
-            print(f"Average Time (ns): {avg_time}, Std Dev Time (ns): {std_dev_time}")
-            print(f"Average Energy (pJ): {avg_energy}, Std Dev Energy (pJ): {std_dev_energy}\n")
 
-    return results
-
+    return results  # Make sure to return the results dictionary
+            
+            
 def reset_metrics(self):
     self.time_ns = 0
     self.l1_instruction_hits = 0
@@ -332,3 +351,13 @@ MemorySubsystem.reset_metrics = reset_metrics
 
 # Example usage
 results = run_simulation_multiple_times(directory_path, memory_system)
+
+def print_results_table(results):
+    print(f"{'Filename':<30} {'Avg Time (ns)':>15} {'Time Std Dev (ns)':>20} {'Avg Energy (pJ)':>20} {'Energy Std Dev (pJ)':>20}")
+    print("-" * 105)
+    for filename, metrics in results.items():
+        print(f"{filename:<30} {metrics['average_time_ns']:>15.2f} {metrics['time_std_dev_ns']:>20.2f} {metrics['average_energy_pJ']:>20.2f} {metrics['energy_std_dev_pJ']:>20.2f}")
+
+# Example of printing the results table
+print_results_table(results)
+
