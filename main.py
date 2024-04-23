@@ -1,10 +1,9 @@
 import random
 import subprocess
 import os
-import statistics
 
 class MemorySubsystem:
-    def __init__(self, l1_instruction_cache, l1_data_cache, l2_cache, dram, assoc_level):
+    def __init__(self, l1_instruction_cache, l1_data_cache, l2_cache, dram, assoc_level,existing_metrics=None):
         self.l1_instruction_cache = l1_instruction_cache
         self.l1_data_cache = l1_data_cache
         self.l2_cache = l2_cache
@@ -12,9 +11,15 @@ class MemorySubsystem:
         self.assoc_level = assoc_level  # correctly initialize the associativity level
         self.reset_metrics()
         self.file_metrics = {}
+        if existing_metrics is not None:
+            self.file_metrics = existing_metrics
+        else:
+            self.file_metrics = {}
+
 
     def reset_metrics(self):
         self.time_ns = 0
+        self.total_time_ns = 0
         self.l1_instruction_hits = 0
         self.l1_instruction_misses = 0
         self.l1_data_hits = 0
@@ -47,69 +52,54 @@ class MemorySubsystem:
 
 
     def store_file_metrics(self, filename):
-    # Initialize the base structure for each file if not present
+        # Check if the file entry exists in the metrics dictionary
         if filename not in self.file_metrics:
+            # Initialize all metrics for this file
             self.file_metrics[filename] = {
-                'l1_instruction': {'hits': 0, 'misses': 0, 'energy': 0},
-                'l1_data': {'hits': 0, 'misses': 0, 'energy': 0},
-                'l2': {},  # Nested dictionary for L2 cache details by associativity level
-                'dram': {'accesses': 0, 'energy': 0}
+                'total_time_ns': self.time_ns,  # Initialize and set total_time_ns
+                'l1_instruction': {'hits': self.l1_instruction_hits, 'misses': self.l1_instruction_misses, 'energy': self.l1_instruction_cache.energy_consumed},
+                'l1_data': {'hits': self.l1_data_hits, 'misses': self.l1_data_misses, 'energy': self.l1_data_cache.energy_consumed},
+                'l2': {self.assoc_level: {'hits': 0, 'misses': 0, 'energy': 0}},  # Initialize L2 for the current assoc_level
+                'dram': {'accesses': self.dram_accesses, 'energy': self.dram.energy_consumed}
             }
+        else:
+            # File entry exists, update the total time
+            
 
-    # Ensuring all necessary sub-dictionaries are initialized properly for L1 and L2 caches
-        if 'l1_instruction' not in self.file_metrics[filename]:
-            self.file_metrics[filename]['l1_instruction'] = {'hits': 0, 'misses': 0, 'energy': 0}
-        if 'l1_data' not in self.file_metrics[filename]:
-            self.file_metrics[filename]['l1_data'] = {'hits': 0, 'misses': 0, 'energy': 0}
-        if 'l2' not in self.file_metrics[filename]:
-            self.file_metrics[filename]['l2'] = {}
-        if self.assoc_level is not None and self.assoc_level not in self.file_metrics[filename]['l2']:
-            self.file_metrics[filename]['l2'][self.assoc_level] = {'hits': 0, 'misses': 0, 'energy': 0}
-        if 'dram' not in self.file_metrics[filename]:
-            self.file_metrics[filename]['dram'] = {'accesses': 0, 'energy': 0}
+            self.file_metrics[filename]['total_time_ns'] += self.time_ns
 
-        # Update metrics from current simulation run
-        self.file_metrics[filename]['l1_instruction']['hits'] += self.l1_instruction_hits
-        self.file_metrics[filename]['l1_instruction']['misses'] += self.l1_instruction_misses
-        self.file_metrics[filename]['l1_instruction']['energy'] += self.l1_instruction_cache.energy_consumed
+            # Update existing metrics
+            self.file_metrics[filename]['l1_instruction']['hits'] += self.l1_instruction_hits
+            self.file_metrics[filename]['l1_instruction']['misses'] += self.l1_instruction_misses
+            self.file_metrics[filename]['l1_instruction']['energy'] += self.l1_instruction_cache.energy_consumed
+            self.file_metrics[filename]['l1_data']['hits'] += self.l1_data_hits
+            self.file_metrics[filename]['l1_data']['misses'] += self.l1_data_misses
+            self.file_metrics[filename]['l1_data']['energy'] += self.l1_data_cache.energy_consumed
 
-        self.file_metrics[filename]['l1_data']['hits'] += self.l1_data_hits
-        self.file_metrics[filename]['l1_data']['misses'] += self.l1_data_misses
-        self.file_metrics[filename]['l1_data']['energy'] += self.l1_data_cache.energy_consumed
+            # Check and update L2 cache metrics for the current associativity level
+            if self.assoc_level not in self.file_metrics[filename]['l2']:
+                self.file_metrics[filename]['l2'][self.assoc_level] = {'hits': 0, 'misses': 0, 'energy': 0}
 
-        if self.assoc_level is not None:
             self.file_metrics[filename]['l2'][self.assoc_level]['hits'] += self.l2_hits
             self.file_metrics[filename]['l2'][self.assoc_level]['misses'] += self.l2_misses
             self.file_metrics[filename]['l2'][self.assoc_level]['energy'] += self.l2_cache.energy_consumed
 
-        self.file_metrics[filename]['dram']['accesses'] += self.dram_accesses
-        self.file_metrics[filename]['dram']['energy'] += self.dram.energy_consumed
+            self.file_metrics[filename]['dram']['accesses'] += self.dram_accesses
+            self.file_metrics[filename]['dram']['energy'] += self.dram.energy_consumed
+
+
 
 
     def print_section_summary(self, section):
         print(f"\n{section.upper()} Cache Summary:")
         for filename, metrics in self.file_metrics.items():
+            total_time_ns = metrics.get('total_time_ns', 0)
             if section in metrics:
-                if section == 'dram':  # Handle DRAM section differently
-                    data = metrics[section]
-                    accesses = sum(data['accesses']) if isinstance(data['accesses'], list) else data['accesses']
-                    energy = sum(data['energy']) if isinstance(data['energy'], list) else data['energy']
-                    print(f"File: {filename} - Accesses: {accesses}, Energy (pJ): {energy}")
-                else:  # Handle other caches that have hits and misses
-                    data = metrics[section]
-                    hits = sum(data['hits']) if isinstance(data['hits'], list) else data['hits']
-                    misses = sum(data['misses']) if isinstance(data['misses'], list) else data['misses']
-                    energy = sum(data['energy']) if isinstance(data['energy'], list) else data['energy']
-                    print(f"File: {filename} - Hits: {hits}, Misses: {misses}, Energy (pJ): {energy}")
-
-    def print_l2_section_summary(self):
-        print("\nL2 CACHE Summary by Associativity Level:")
-        for filename, metrics in self.file_metrics.items():
-            if 'l2' in metrics:
-                print(f"File: {filename}")
-                for assoc, data in metrics['l2'].items():
-                    print(f"  Associativity Level {assoc}: Hits: {data['hits']}, Misses: {data['misses']}, Energy (pJ): {data['energy']}")
-
+                data = metrics[section]
+                if section == 'dram':  # DRAM section
+                    print(f"File: {filename} - Accesses: {data['accesses']}, Energy (pJ): {data['energy']}, Total Time (ns): {total_time_ns}")
+                else:  # Other caches
+                    print(f"File: {filename} - Hits: {data['hits']}, Misses: {data['misses']}, Energy (pJ): {data['energy']}, Total Time (ns): {metrics.get('total_time_ns', 0)}")
         
     def calculate_idle_energy(self):
         # Calculate the total simulation time in seconds
@@ -174,14 +164,7 @@ class MemorySubsystem:
         return hit, time_taken, energy_consumed
     
     def simulate(self, trace_file_path):
-        self.time_ns = 0
-        self.l1_instruction_hits = 0
-        self.l1_instruction_misses = 0
-        self.l1_data_hits = 0
-        self.l1_data_misses = 0
-        self.l2_hits = 0
-        self.l2_misses = 0
-        self.dram_accesses = 0
+        self.reset_metrics()
         if trace_file_path.endswith('.Z'):
             with subprocess.Popen(['gunzip', '-c', trace_file_path], stdout=subprocess.PIPE) as proc:
                 file = proc.stdout
@@ -332,15 +315,16 @@ l1_instruction_cache = DirectMappedCache(size_kb=32, line_size=64, access_time=0
 l1_data_cache = DirectMappedCache(size_kb=32, line_size=64, access_time=0.5, idle_power=0.5, active_power=1)
 dram = DRAM(size_gb=8, access_time=50, idle_power=0.8, active_power=4, transfer_penalty=640)
 l2_cache = SetAssociativeCache(size_kb=256, line_size=64, assoc=4, access_time=5, idle_power=0.8, active_power=2, transfer_penalty=5, next_level_cache=dram)
-directory_path = "C:\\Users\\foodrunner\\Desktop\\energyshit\\project1-eec-1\\Traces\\Spec_Benchmark"
+directory_path = "Traces/Spec_Benchmark"
 
 def run_simulation_on_all_traces_AL(directory, base_l1_instruction_cache, base_l1_data_cache, base_dram):
     associativity_levels = [2, 4, 8]
     l2_summary = {}  # Dictionary to store L2 results by associativity level
+    file_metrics = {}  
 
     # Create a dummy minimal L2 cache setup for general simulation that does not impact the results
     dummy_l2_cache = SetAssociativeCache(size_kb=1, line_size=64, assoc=4, access_time=1, idle_power=0, active_power=0, transfer_penalty=0, next_level_cache=None)
-    general_memory_system = MemorySubsystem(base_l1_instruction_cache, base_l1_data_cache, dummy_l2_cache, base_dram,4)
+    general_memory_system = MemorySubsystem(base_l1_instruction_cache, base_l1_data_cache, dummy_l2_cache, base_dram,4,existing_metrics=file_metrics)
 
     # Process files for general L1 and DRAM stats
     for filename in os.listdir(directory):
@@ -349,13 +333,12 @@ def run_simulation_on_all_traces_AL(directory, base_l1_instruction_cache, base_l
             print(f"Simulating for L1/DRAM general stats: {file_path}")
             general_memory_system.simulate(file_path)
             general_memory_system.store_file_metrics(filename)
-            general_memory_system.reset_metrics()
             
     # Simulate with each L2 associativity
     for assoc in associativity_levels:
         print(f"\nPreparing simulations for L2 cache associativity level: {assoc}")
         l2_cache = SetAssociativeCache(size_kb=256, line_size=64, assoc=assoc, access_time=5, idle_power=0.8, active_power=2, transfer_penalty=5, next_level_cache=base_dram)
-        memory_system = MemorySubsystem(base_l1_instruction_cache, base_l1_data_cache, l2_cache, base_dram,assoc)
+        memory_system = MemorySubsystem(base_l1_instruction_cache, base_l1_data_cache, l2_cache, base_dram,assoc,existing_metrics=file_metrics)
         l2_summary[assoc] = {}
 
         for filename in os.listdir(directory):
@@ -364,11 +347,9 @@ def run_simulation_on_all_traces_AL(directory, base_l1_instruction_cache, base_l
                 print(f"Simulating file: {file_path} with L2 associativity {assoc}")
                 memory_system.simulate(file_path)
                 if filename not in memory_system.file_metrics:
-                    memory_system.file_metrics[filename] = {}  # Ensure each file has an entry
+                    memory_system.file_metrics[filename] = {}
                 memory_system.store_file_metrics(filename)
-                memory_system.reset_metrics()
 
-            # Store L2 results for each associativity level
             l2_summary[assoc][filename] = memory_system.file_metrics.get(filename, {})
 
     general_memory_system.print_section_summary('l1_instruction')
@@ -381,10 +362,11 @@ def run_simulation_on_all_traces_AL(directory, base_l1_instruction_cache, base_l
         print(f"L2 CACHE Summary by Associativity Level {assoc}:")
         for filename, metrics in files.items():
             l2_data = metrics.get('l2', {}).get(assoc, {})
-            print(f"File: {filename} - Hits: {l2_data.get('hits', [])}, Misses: {l2_data.get('misses', [])}, Energy (pJ): {l2_data.get('energy', 0)}")
+            print(f"File: {filename} - Hits: {l2_data.get('hits', [])}, Misses: {l2_data.get('misses', [])}, Energy (pJ): {l2_data.get('energy', 0)}, Total Time (ns): {metrics.get('total_time_ns',0)}")
         
     total_energy, total_time = general_memory_system.calculate_total_energy_and_time()
     print(f"\nTotal Energy Consumed across all components (pJ): {total_energy}")
     print(f"Total Simulation Time across all components (ns): {total_time}")
 
 run_simulation_on_all_traces_AL(directory_path, l1_instruction_cache, l1_data_cache, dram)
+
