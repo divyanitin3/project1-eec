@@ -4,12 +4,14 @@ import os
 import statistics
 
 class MemorySubsystem:
-    def __init__(self, l1_instruction_cache, l1_data_cache, l2_cache, dram):
+    def __init__(self, l1_instruction_cache, l1_data_cache, l2_cache, dram, assoc_level):
         self.l1_instruction_cache = l1_instruction_cache
         self.l1_data_cache = l1_data_cache
         self.l2_cache = l2_cache
         self.dram = dram
+        self.assoc_level = assoc_level  # correctly initialize the associativity level
         self.reset_metrics()
+        self.file_metrics = {}
 
     def reset_metrics(self):
         self.time_ns = 0
@@ -23,35 +25,91 @@ class MemorySubsystem:
         self.energy_consumed = {
             'l1_instruction': 0,
             'l1_data': 0,
-            'l2': 0,
+            'l2': {},  # Ensure this is a dictionary
             'dram': 0
         }
+        # Ensure 'l2' is a dictionary and ready for a nested dictionary assignment
+        if 'l2' not in self.energy_consumed or not isinstance(self.energy_consumed['l2'], dict):
+            self.energy_consumed['l2'] = {}  # Initialize or reset if not a dictionary
+        # Initialize the dictionary for the current associativity level within 'l2'
+        self.energy_consumed['l2'][self.assoc_level] = {'hits': 0, 'misses': 0, 'energy': 0}
 
-    def print_summary(self):
-        print("L1 Instruction Cache Summary:")
-        self.print_cache_summary('l1_instruction')
-        print("L1 Data Cache Summary:")
-        self.print_cache_summary('l1_data')
-        print("L2 Cache Summary:")
-        self.print_cache_summary('l2')
-        print("DRAM Summary:")
-        self.print_dram_summary()
+    def calculate_total_energy_and_time(self):
+        # Calculate total energy and total time across all caches
+        total_energy = self.l1_instruction_cache.energy_consumed + \
+                       self.l1_data_cache.energy_consumed + \
+                       sum(v['energy'] for v in self.energy_consumed['l2'].values()) + \
+                       self.dram.energy_consumed
 
-    def print_cache_summary(self, level):
-        total_hits = getattr(self, f"{level}_hits")
-        total_misses = getattr(self, f"{level}_misses")
-        total_accesses = total_hits + total_misses
-        miss_rate = total_misses / total_accesses if total_accesses else 0
-        print(f"Avg Misses: {total_misses}")
-        print(f"Avg Hits: {total_hits}")
-        print(f"Avg Total Accesses: {total_accesses}")
-        print(f"Avg Miss Rate: {miss_rate * 100:.2f}%")
-        print(f"Avg Total Energy (nJ): {self.energy_consumed[level]}")
-        print(f"Total Time (ns): {self.time_ns}")
+        total_time = self.time_ns  # Total time in nanoseconds
 
-    def print_dram_summary(self):
-        print(f"Avg Accesses: {self.dram_accesses}")
-        print(f"Avg Total Energy (nJ): {self.energy_consumed['dram']}")
+        return total_energy, total_time
+
+
+    def store_file_metrics(self, filename):
+    # Initialize the base structure for each file if not present
+        if filename not in self.file_metrics:
+            self.file_metrics[filename] = {
+                'l1_instruction': {'hits': 0, 'misses': 0, 'energy': 0},
+                'l1_data': {'hits': 0, 'misses': 0, 'energy': 0},
+                'l2': {},  # Nested dictionary for L2 cache details by associativity level
+                'dram': {'accesses': 0, 'energy': 0}
+            }
+
+    # Ensuring all necessary sub-dictionaries are initialized properly for L1 and L2 caches
+        if 'l1_instruction' not in self.file_metrics[filename]:
+            self.file_metrics[filename]['l1_instruction'] = {'hits': 0, 'misses': 0, 'energy': 0}
+        if 'l1_data' not in self.file_metrics[filename]:
+            self.file_metrics[filename]['l1_data'] = {'hits': 0, 'misses': 0, 'energy': 0}
+        if 'l2' not in self.file_metrics[filename]:
+            self.file_metrics[filename]['l2'] = {}
+        if self.assoc_level is not None and self.assoc_level not in self.file_metrics[filename]['l2']:
+            self.file_metrics[filename]['l2'][self.assoc_level] = {'hits': 0, 'misses': 0, 'energy': 0}
+        if 'dram' not in self.file_metrics[filename]:
+            self.file_metrics[filename]['dram'] = {'accesses': 0, 'energy': 0}
+
+        # Update metrics from current simulation run
+        self.file_metrics[filename]['l1_instruction']['hits'] += self.l1_instruction_hits
+        self.file_metrics[filename]['l1_instruction']['misses'] += self.l1_instruction_misses
+        self.file_metrics[filename]['l1_instruction']['energy'] += self.l1_instruction_cache.energy_consumed
+
+        self.file_metrics[filename]['l1_data']['hits'] += self.l1_data_hits
+        self.file_metrics[filename]['l1_data']['misses'] += self.l1_data_misses
+        self.file_metrics[filename]['l1_data']['energy'] += self.l1_data_cache.energy_consumed
+
+        if self.assoc_level is not None:
+            self.file_metrics[filename]['l2'][self.assoc_level]['hits'] += self.l2_hits
+            self.file_metrics[filename]['l2'][self.assoc_level]['misses'] += self.l2_misses
+            self.file_metrics[filename]['l2'][self.assoc_level]['energy'] += self.l2_cache.energy_consumed
+
+        self.file_metrics[filename]['dram']['accesses'] += self.dram_accesses
+        self.file_metrics[filename]['dram']['energy'] += self.dram.energy_consumed
+
+
+    def print_section_summary(self, section):
+        print(f"\n{section.upper()} Cache Summary:")
+        for filename, metrics in self.file_metrics.items():
+            if section in metrics:
+                if section == 'dram':  # Handle DRAM section differently
+                    data = metrics[section]
+                    accesses = sum(data['accesses']) if isinstance(data['accesses'], list) else data['accesses']
+                    energy = sum(data['energy']) if isinstance(data['energy'], list) else data['energy']
+                    print(f"File: {filename} - Accesses: {accesses}, Energy (pJ): {energy}")
+                else:  # Handle other caches that have hits and misses
+                    data = metrics[section]
+                    hits = sum(data['hits']) if isinstance(data['hits'], list) else data['hits']
+                    misses = sum(data['misses']) if isinstance(data['misses'], list) else data['misses']
+                    energy = sum(data['energy']) if isinstance(data['energy'], list) else data['energy']
+                    print(f"File: {filename} - Hits: {hits}, Misses: {misses}, Energy (pJ): {energy}")
+
+    def print_l2_section_summary(self):
+        print("\nL2 CACHE Summary by Associativity Level:")
+        for filename, metrics in self.file_metrics.items():
+            if 'l2' in metrics:
+                print(f"File: {filename}")
+                for assoc, data in metrics['l2'].items():
+                    print(f"  Associativity Level {assoc}: Hits: {data['hits']}, Misses: {data['misses']}, Energy (pJ): {data['energy']}")
+
         
     def calculate_idle_energy(self):
         # Calculate the total simulation time in seconds
@@ -84,6 +142,7 @@ class MemorySubsystem:
     def access_memory(self, address, mode, is_instruction=False):
         target_cache = self.l1_instruction_cache if is_instruction else self.l1_data_cache
         hit, time_taken, energy_consumed = target_cache.access(address, mode)
+        self.time_ns += time_taken  # Make sure time is added here
 
         if is_instruction:
             if hit:
@@ -108,6 +167,7 @@ class MemorySubsystem:
                 time_taken += dram_time
                 energy_consumed += dram_energy
                 if not hit:
+                    self.time_ns += dram_time  # Add DRAM access time
                     self.dram_accesses += 1
 
         self.time_ns += time_taken
@@ -182,6 +242,8 @@ class DirectMappedCache:
         energy_per_access_pj = (self.active_power * (self.access_time * 1e-9)) * 1e12
         self.energy_consumed += energy_per_access_pj
 
+        time_taken = self.access_time
+
         if line.valid and line.tag == tag:
             if mode == 'write':
                 line.dirty = True
@@ -219,6 +281,7 @@ class SetAssociativeCache:
         tag = address // (self.line_size * len(self.sets))
         cache_set = self.sets[set_index]
         hit = False
+        time_taken = self.access_time  # Time is taken whether hit or miss
         energy_per_access_pj = (self.active_power * (self.access_time * 1e-9)) * 1e12
 
         for line in cache_set:
@@ -261,6 +324,7 @@ class DRAM:
     def access(self, address, mode):
         active_energy_pj = (self.active_power * (self.access_time * 1e-9)) * 1e12
         total_energy_pj = active_energy_pj + self.transfer_penalty
+        time_taken = self.access_time  # Time taken on each DRAM access
         self.energy_consumed += total_energy_pj
         return False, self.access_time, total_energy_pj
 
@@ -268,135 +332,59 @@ l1_instruction_cache = DirectMappedCache(size_kb=32, line_size=64, access_time=0
 l1_data_cache = DirectMappedCache(size_kb=32, line_size=64, access_time=0.5, idle_power=0.5, active_power=1)
 dram = DRAM(size_gb=8, access_time=50, idle_power=0.8, active_power=4, transfer_penalty=640)
 l2_cache = SetAssociativeCache(size_kb=256, line_size=64, assoc=4, access_time=5, idle_power=0.8, active_power=2, transfer_penalty=5, next_level_cache=dram)
-memory_system = MemorySubsystem(l1_instruction_cache, l1_data_cache, l2_cache, dram)
 directory_path = "C:\\Users\\foodrunner\\Desktop\\energyshit\\project1-eec-1\\Traces\\Spec_Benchmark"
 
 def run_simulation_on_all_traces_AL(directory, base_l1_instruction_cache, base_l1_data_cache, base_dram):
     associativity_levels = [2, 4, 8]
-    for assoc in associativity_levels:
-        print(f"Running simulations with L2 cache associativity level: {assoc}")
-        l2_cache = SetAssociativeCache(size_kb=256, line_size=64, assoc=assoc, access_time=5, idle_power=0.8, active_power=2, transfer_penalty=5, next_level_cache=dram)
-        memory_system = MemorySubsystem(base_l1_instruction_cache, base_l1_data_cache, l2_cache, base_dram)
-        for filename in os.listdir(directory):
-            file_path = os.path.join(directory, filename)
-            if file_path.endswith('.din') or file_path.endswith('.Z'):
-                print(f"Simulating file: {file_path}")
-                memory_system.simulate(file_path)
-                print(f"Finished simulating file: {file_path}\n")
-        memory_system.print_summary()
-                
-run_simulation_on_all_traces_AL(directory_path, l1_instruction_cache, l1_data_cache, dram)
+    l2_summary = {}  # Dictionary to store L2 results by associativity level
 
+    # Create a dummy minimal L2 cache setup for general simulation that does not impact the results
+    dummy_l2_cache = SetAssociativeCache(size_kb=1, line_size=64, assoc=4, access_time=1, idle_power=0, active_power=0, transfer_penalty=0, next_level_cache=None)
+    general_memory_system = MemorySubsystem(base_l1_instruction_cache, base_l1_data_cache, dummy_l2_cache, base_dram,4)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-'''
-
-def run_simulation_multiple_times(directory, memory_system, num_runs=10):
-    results = {}
-
+    # Process files for general L1 and DRAM stats
     for filename in os.listdir(directory):
         file_path = os.path.join(directory, filename)
         if file_path.endswith('.din') or file_path.endswith('.Z'):
-            print(f"Starting simulation for: {file_path}")
+            print(f"Simulating for L1/DRAM general stats: {file_path}")
+            general_memory_system.simulate(file_path)
+            general_memory_system.store_file_metrics(filename)
+            general_memory_system.reset_metrics()
+            
+    # Simulate with each L2 associativity
+    for assoc in associativity_levels:
+        print(f"\nPreparing simulations for L2 cache associativity level: {assoc}")
+        l2_cache = SetAssociativeCache(size_kb=256, line_size=64, assoc=assoc, access_time=5, idle_power=0.8, active_power=2, transfer_penalty=5, next_level_cache=base_dram)
+        memory_system = MemorySubsystem(base_l1_instruction_cache, base_l1_data_cache, l2_cache, base_dram,assoc)
+        l2_summary[assoc] = {}
 
-            times = []
-            energies = []
-            l1_instruction_hits = []
-            l1_instruction_misses = []
-            l1_data_hits = []
-            l1_data_misses = []
-            l2_hits = []
-            l2_misses = []
-            dram_accesses = []
-
-            for _ in range(num_runs):
+        for filename in os.listdir(directory):
+            file_path = os.path.join(directory, filename)
+            if file_path.endswith('.din') or file_path.endswith('.Z'):
+                print(f"Simulating file: {file_path} with L2 associativity {assoc}")
                 memory_system.simulate(file_path)
-
-                times.append(memory_system.time_ns)
-                energies.append(memory_system.l1_instruction_cache.energy_consumed +
-                                memory_system.l1_data_cache.energy_consumed +
-                                memory_system.l2_cache.energy_consumed +
-                                memory_system.dram.energy_consumed)
-
-                l1_instruction_hits.append(memory_system.l1_instruction_hits)
-                l1_instruction_misses.append(memory_system.l1_instruction_misses)
-                l1_data_hits.append(memory_system.l1_data_hits)
-                l1_data_misses.append(memory_system.l1_data_misses)
-                l2_hits.append(memory_system.l2_hits)
-                l2_misses.append(memory_system.l2_misses)
-                dram_accesses.append(memory_system.dram_accesses)
-
+                if filename not in memory_system.file_metrics:
+                    memory_system.file_metrics[filename] = {}  # Ensure each file has an entry
+                memory_system.store_file_metrics(filename)
                 memory_system.reset_metrics()
 
-            avg_time = statistics.mean(times)
-            std_dev_time = statistics.stdev(times)
-            avg_energy = statistics.mean(energies)
-            std_dev_energy = statistics.stdev(energies)
+            # Store L2 results for each associativity level
+            l2_summary[assoc][filename] = memory_system.file_metrics.get(filename, {})
 
-            results[filename] = {
-                'average_time_ns': avg_time,
-                'time_std_dev_ns': std_dev_time,
-                'average_energy_pJ': avg_energy,
-                'energy_std_dev_pJ': std_dev_energy
-            }
+    general_memory_system.print_section_summary('l1_instruction')
+    general_memory_system.print_section_summary('l1_data')
+    general_memory_system.print_section_summary('dram')
 
-            print(f"Finished simulations for: {file_path}")
 
-    return results 
-            
-def reset_metrics(self):
-    self.time_ns = 0
-    self.l1_instruction_hits = 0
-    self.l1_instruction_misses = 0
-    self.l1_data_hits = 0
-    self.l1_data_misses = 0
-    self.l2_hits = 0
-    self.l2_misses = 0
-    self.dram_accesses = 0
-    self.l1_instruction_cache.energy_consumed = 0
-    self.l1_data_cache.energy_consumed = 0
-    self.l2_cache.energy_consumed = 0
-    self.dram.energy_consumed = 0
+    # Print L2 summaries per associativity level
+    for assoc, files in l2_summary.items():
+        print(f"L2 CACHE Summary by Associativity Level {assoc}:")
+        for filename, metrics in files.items():
+            l2_data = metrics.get('l2', {}).get(assoc, {})
+            print(f"File: {filename} - Hits: {l2_data.get('hits', [])}, Misses: {l2_data.get('misses', [])}, Energy (pJ): {l2_data.get('energy', 0)}")
+        
+    total_energy, total_time = general_memory_system.calculate_total_energy_and_time()
+    print(f"\nTotal Energy Consumed across all components (pJ): {total_energy}")
+    print(f"Total Simulation Time across all components (ns): {total_time}")
 
-MemorySubsystem.reset_metrics = reset_metrics
-
-results = run_simulation_multiple_times(directory_path, memory_system)
-
-def print_results_table(results):
-    print(f"{'Filename':<30} {'Avg Time (ns)':>15} {'Time Std Dev (ns)':>20} {'Avg Energy (pJ)':>20} {'Energy Std Dev (pJ)':>20}")
-    print("-" * 105)
-    for filename, metrics in results.items():
-        print(f"{filename:<30} {metrics['average_time_ns']:>15.2f} {metrics['time_std_dev_ns']:>20.2f} {metrics['average_energy_pJ']:>20.2f} {metrics['energy_std_dev_pJ']:>20.2f}")
-
-print_results_table(results)
-
-'''
+run_simulation_on_all_traces_AL(directory_path, l1_instruction_cache, l1_data_cache, dram)
