@@ -9,7 +9,10 @@ class MemorySubsystem:
         self.l1_data_cache = l1_data_cache
         self.l2_cache = l2_cache
         self.dram = dram
-        self.time_ns = 0 
+        self.reset_metrics()
+
+    def reset_metrics(self):
+        self.time_ns = 0
         self.l1_instruction_hits = 0
         self.l1_instruction_misses = 0
         self.l1_data_hits = 0
@@ -17,12 +20,42 @@ class MemorySubsystem:
         self.l2_hits = 0
         self.l2_misses = 0
         self.dram_accesses = 0
+        self.energy_consumed = {
+            'l1_instruction': 0,
+            'l1_data': 0,
+            'l2': 0,
+            'dram': 0
+        }
 
+    def print_summary(self):
+        print("L1 Instruction Cache Summary:")
+        self.print_cache_summary('l1_instruction')
+        print("L1 Data Cache Summary:")
+        self.print_cache_summary('l1_data')
+        print("L2 Cache Summary:")
+        self.print_cache_summary('l2')
+        print("DRAM Summary:")
+        self.print_dram_summary()
+
+    def print_cache_summary(self, level):
+        total_hits = getattr(self, f"{level}_hits")
+        total_misses = getattr(self, f"{level}_misses")
+        total_accesses = total_hits + total_misses
+        miss_rate = total_misses / total_accesses if total_accesses else 0
+        print(f"Avg Misses: {total_misses}")
+        print(f"Avg Hits: {total_hits}")
+        print(f"Avg Total Accesses: {total_accesses}")
+        print(f"Avg Miss Rate: {miss_rate * 100:.2f}%")
+        print(f"Avg Total Energy (nJ): {self.energy_consumed[level]}")
+        print(f"Total Time (ns): {self.time_ns}")
+
+    def print_dram_summary(self):
+        print(f"Avg Accesses: {self.dram_accesses}")
+        print(f"Avg Total Energy (nJ): {self.energy_consumed['dram']}")
         
     def calculate_idle_energy(self):
         # Calculate the total simulation time in seconds
         total_time_s = self.time_ns * 1e-9
-
         self.l1_instruction_cache.energy_consumed += (self.l1_instruction_cache.idle_power * total_time_s) * 1e12
         self.l1_data_cache.energy_consumed += (self.l1_data_cache.idle_power * total_time_s) * 1e12
         self.l2_cache.energy_consumed += (self.l2_cache.idle_power * total_time_s) * 1e12
@@ -36,6 +69,8 @@ class MemorySubsystem:
                        self.l2_cache.energy_consumed + self.dram.energy_consumed
         average_access_time_ns = self.time_ns / total_accesses if total_accesses else 0
 
+        miss_rate = total_misses / total_accesses if total_accesses else 0
+
         print(f"Total Hits: {total_hits}")
         print(f"Total Misses: {total_misses}")
         print(f"L1 Instruction Cache Hits: {self.l1_instruction_hits}, Misses: {self.l1_instruction_misses}")
@@ -44,7 +79,7 @@ class MemorySubsystem:
         print(f"DRAM Accesses: {self.dram_accesses}")
         print(f"Total Energy Consumed (pJ): {total_energy}")
         print(f"Average Access Time (ns): {average_access_time_ns}")
-
+        print(f"Miss Rate (%): {miss_rate * 100}")
 
     def access_memory(self, address, mode, is_instruction=False):
         target_cache = self.l1_instruction_cache if is_instruction else self.l1_data_cache
@@ -233,29 +268,14 @@ l1_instruction_cache = DirectMappedCache(size_kb=32, line_size=64, access_time=0
 l1_data_cache = DirectMappedCache(size_kb=32, line_size=64, access_time=0.5, idle_power=0.5, active_power=1)
 dram = DRAM(size_gb=8, access_time=50, idle_power=0.8, active_power=4, transfer_penalty=640)
 l2_cache = SetAssociativeCache(size_kb=256, line_size=64, assoc=4, access_time=5, idle_power=0.8, active_power=2, transfer_penalty=5, next_level_cache=dram)
-
 memory_system = MemorySubsystem(l1_instruction_cache, l1_data_cache, l2_cache, dram)
-
-def run_simulation_on_all_traces(directory, memory_system):
-    for filename in os.listdir(directory):
-        file_path = os.path.join(directory, filename)
-        if file_path.endswith('.din') or file_path.endswith('.Z'):
-            print(f"Simulating file: {file_path}")
-            memory_system.simulate(file_path)
-            print(f"Finished simulating file: {file_path}\n")
-
 directory_path = "C:\\Users\\foodrunner\\Desktop\\energyshit\\project1-eec-1\\Traces\\Spec_Benchmark"
-#run_simulation_on_all_traces(directory_path, memory_system)
-
-
 
 def run_simulation_on_all_traces_AL(directory, base_l1_instruction_cache, base_l1_data_cache, base_dram):
     associativity_levels = [2, 4, 8]
     for assoc in associativity_levels:
         print(f"Running simulations with L2 cache associativity level: {assoc}")
-        
         l2_cache = SetAssociativeCache(size_kb=256, line_size=64, assoc=assoc, access_time=5, idle_power=0.8, active_power=2, transfer_penalty=5, next_level_cache=dram)
-
         memory_system = MemorySubsystem(base_l1_instruction_cache, base_l1_data_cache, l2_cache, base_dram)
         for filename in os.listdir(directory):
             file_path = os.path.join(directory, filename)
@@ -263,25 +283,51 @@ def run_simulation_on_all_traces_AL(directory, base_l1_instruction_cache, base_l
                 print(f"Simulating file: {file_path}")
                 memory_system.simulate(file_path)
                 print(f"Finished simulating file: {file_path}\n")
+        memory_system.print_summary()
+                
+run_simulation_on_all_traces_AL(directory_path, l1_instruction_cache, l1_data_cache, dram)
 
-directory_path = "C:\\Users\\foodrunner\\Desktop\\energyshit\\project1-eec-1\\Traces\\Spec_Benchmark"
-l1_instruction_cache = DirectMappedCache(size_kb=32, line_size=64, access_time=0.5, idle_power=0.5, active_power=1)
-l1_data_cache = DirectMappedCache(size_kb=32, line_size=64, access_time=0.5, idle_power=0.5, active_power=1)
-dram = DRAM(size_gb=8, access_time=50, idle_power=0.8, active_power=4, transfer_penalty=640)
 
-#run_simulation_on_all_traces_AL(directory_path, l1_instruction_cache, l1_data_cache, dram)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'''
 
 def run_simulation_multiple_times(directory, memory_system, num_runs=10):
-    results = {}  # Dictionary to hold results
+    results = {}
 
-    # Iterate over each file in the directory
     for filename in os.listdir(directory):
         file_path = os.path.join(directory, filename)
         if file_path.endswith('.din') or file_path.endswith('.Z'):
             print(f"Starting simulation for: {file_path}")
 
-            # Lists to hold metrics for multiple runs
             times = []
             energies = []
             l1_instruction_hits = []
@@ -293,16 +339,14 @@ def run_simulation_multiple_times(directory, memory_system, num_runs=10):
             dram_accesses = []
 
             for _ in range(num_runs):
-                memory_system.simulate(file_path)  # Run the simulation
+                memory_system.simulate(file_path)
 
-                # Append time and energy data
                 times.append(memory_system.time_ns)
                 energies.append(memory_system.l1_instruction_cache.energy_consumed +
                                 memory_system.l1_data_cache.energy_consumed +
                                 memory_system.l2_cache.energy_consumed +
                                 memory_system.dram.energy_consumed)
 
-                # Append hit and miss data for caches
                 l1_instruction_hits.append(memory_system.l1_instruction_hits)
                 l1_instruction_misses.append(memory_system.l1_instruction_misses)
                 l1_data_hits.append(memory_system.l1_data_hits)
@@ -311,15 +355,13 @@ def run_simulation_multiple_times(directory, memory_system, num_runs=10):
                 l2_misses.append(memory_system.l2_misses)
                 dram_accesses.append(memory_system.dram_accesses)
 
-                memory_system.reset_metrics()  # Reset metrics after each run
+                memory_system.reset_metrics()
 
-            # Calculate mean and standard deviation for time and energy
             avg_time = statistics.mean(times)
             std_dev_time = statistics.stdev(times)
             avg_energy = statistics.mean(energies)
             std_dev_energy = statistics.stdev(energies)
 
-            # Store results
             results[filename] = {
                 'average_time_ns': avg_time,
                 'time_std_dev_ns': std_dev_time,
@@ -329,8 +371,7 @@ def run_simulation_multiple_times(directory, memory_system, num_runs=10):
 
             print(f"Finished simulations for: {file_path}")
 
-    return results  # Make sure to return the results dictionary
-            
+    return results 
             
 def reset_metrics(self):
     self.time_ns = 0
@@ -346,10 +387,8 @@ def reset_metrics(self):
     self.l2_cache.energy_consumed = 0
     self.dram.energy_consumed = 0
 
-# Add reset_metrics to MemorySubsystem class
 MemorySubsystem.reset_metrics = reset_metrics
 
-# Example usage
 results = run_simulation_multiple_times(directory_path, memory_system)
 
 def print_results_table(results):
@@ -358,6 +397,6 @@ def print_results_table(results):
     for filename, metrics in results.items():
         print(f"{filename:<30} {metrics['average_time_ns']:>15.2f} {metrics['time_std_dev_ns']:>20.2f} {metrics['average_energy_pJ']:>20.2f} {metrics['energy_std_dev_pJ']:>20.2f}")
 
-# Example of printing the results table
 print_results_table(results)
 
+'''
