@@ -1,0 +1,760 @@
+Report:
+
+Design Decisions:
+
+Each component (L1 cache, L2 cache, and DRAM) calculates energy consumed both during active operations (accesses) and idle times (using idle and active power ratings).
+Energy for each access is calculated as power * (time * 1e-9) * 1e12, converting power usage over time to picojoules
+
+On a cache miss in the L1 cache, control is passed to the L2 cache, and upon a miss in the L2, the DRAM is accessed.
+
+write-back cache:
+
+Direct-mapped and set-associative caches: 
+On a write hit, the line is marked as dirty, 
+On a write miss, new data is fetched into the cache, and then the write is performed.
+
+Handling Cache Misses and Write Operations
+
+If a write operation occurs to a cache line that is not in the cache (write miss),
+ the line is brought into the cache, and then the write is performed.
+
+If the line to be evicted (in case of a cache miss) is dirty, 
+it means that the modified data has not yet been written back to the next level cache or memory.
+
+Associativity Level Affects:
+
+Increasing the cache associativity from 2-way to 8-way generally lowered the miss rates and 
+improved average access times by allowing more cache blocks to coexist, reducing conflicts 
+and relying on the main memory. This is, however, at the expense: higher associativity, in turn, 
+gives a bigger energy consumption due to the complexity of managing more ways in the cache and associated hardware. 
+Besides, increased energy use and hardware costs have to be weighed against decreased DRAM 
+accesses, which consequently enhance overall system efficiency. 
+
+Table Output:
+Trace ID        | Total Hits | Total Misses | L1 Instr. Hits | L1 Instr. Misses | L1 Data Hits | L1 Data Misses | L2 Hits (Assoc 2) | L2 Misses (Assoc 2) | L2 Hits (Assoc 4) | L2 Misses (Assoc 4) | L2 Hits (Assoc 8) | L2 Misses (Assoc 8) | DRAM Accesses | Energy Consumed (pJ) | Total Time (ns) | Avg Access Time (ns) | Miss Rate (%)
+048.ora.din     | 999566     | 913          | 799494         | 277              | 200031       | 200            | 41                | 436                 | 35                | 442                 | 37                | 440                 | 436           | 70701364780.0        | 4198049.0       | 1.045                | 0.091
+015.doduc.din   | 997823     | 8817         | 751169         | 4024             | 242191       | 2616           | 4463              | 2177                | 4390              | 2250                | 4400              | 2240                | 2177          | 75005252300.0        | 5352464.0       | 1.243                | 0.876
+022.li.din      | 999248     | 7805         | 739921         | 2333             | 253032       | 4717           | 6295              | 755                 | 6303              | 747                 | 6259              | 791                 | 755           | 78651711280.0        | 4726817.0       | 1.103                | 0.775
+026.compress.din| 994599     | 18338        | 721147         | 69               | 265916       | 12868          | 7536              | 5401                | 7391              | 5546                | 7277              | 5660                | 5401          | 85092751080.0        | 7129592.0       | 1.584                | 1.810
+085.gcc.din     | 997997     | 20064        | 766890         | 12625            | 215049       | 5436           | 16058             | 2003                | 16129             | 1932                | 16133             | 1928                | 2003          | 89794256320.0        | 6592976.0       | 1.268                | 1.971
+094.fpppp.din   | 998469     | 14524        | 692827         | 7673             | 294180       | 5320           | 11462             | 1531                | 11532             | 1461                | 11474             | 1519                | 1531          | 94087939960.0        | 5473288.0       | 1.202                | 1.434
+008.espresso.din| 999543     | 3094         | 807730         | 1638             | 189633       | 999            | 2180              | 457                 | 2138              | 499                 | 2133              | 504                 | 457           | 97517489680.0        | 4298192.0       | 1.056                | 0.309
+013.spice2g6.din| 999368     | 3926         | 781622         | 2557             | 215088       | 735            | 2658              | 634                 | 2616              | 676                 | 2625              | 667                 | 634           | 101078555240.0       | 4574080.0       | 1.076                | 0.391
+047.tomcatv.din | 991317     | 19057        | 615467         | 77               | 374159       | 10297          | 1691              | 8683                | 1693              | 8681                | 1716              | 8658                | 8683          | 109828798040.0       | 7723884.0       | 1.900                | 1.886
+089.su2cor.din  | 997103     | 6487         | 736725         | 456              | 259685       | 3134           | 693               | 2897                | 732               | 2858                | 723               | 2867                | 2897          | 114871117640.0       | 5272640.0       | 1.303                | 0.646
+090.hydro2d.din | 994061     | 18672        | 747889         | 799              | 239378       | 11934          | 6794              | 5939                | 6311              | 6422                | 6226              | 6507                | 5939          | 121960582560.0       | 7342928.0       | 1.637                | 1.844
+093.nasa7.din   | 998833     | 4392         | 802599         | 372              | 194176       | 2853           | 2058              | 1167                | 1855              | 1370                | 1828              | 1397                | 1167          | 125845878040.0       | 4735900.0       | 1.129                | 0.438
+039.wave5.din   | 999337     | 1490         | 827142         | 458              | 172031       | 369            | 164               | 663                 | 155               | 672                 | 143               | 684                 | 663           | 129388680960.0       | 4296332.0       | 1.070                | 0.149
+023.eqntott.din | 998800     | 3424         | 769584         | 175              | 228192       | 2049           | 1024              | 1200                | 1004              | 1220                | 940               | 1284                | 1200          | 133284212160.0       | 4597384.0       | 1.129                | 0.342
+034.mdljdp2.din | 998933     | 3532         | 767515         | 1028             | 230020       | 1437           | 1398              | 1067                | 1425              | 1040                | 1398              | 1067                | 1067          | 137099743800.0       | 4575240.0       | 1.116                | 0.352
+
+Raw Output:
+
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\008.espresso.din
+Total Hits: 998816
+Total Misses: 3887
+L1 Instruction Cache Hits: 807667, Misses: 1701
+L1 Data Cache Hits: 189630, Misses: 1002
+L2 Cache Hits: 1519, Misses: 1184
+DRAM Accesses: 1184
+Total Energy Consumed (pJ): 2755543160.0
+Average Access Time (ns): 1.1180808275232048
+Miss Rate (%): 0.3876521761678184
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\013.spice2g6.din
+Total Hits: 996714
+Total Misses: 6621
+L1 Instruction Cache Hits: 781584, Misses: 2595
+L1 Data Cache Hits: 215085, Misses: 738
+L2 Cache Hits: 45, Misses: 3288
+DRAM Accesses: 3288
+Total Energy Consumed (pJ): 6313091480.0
+Average Access Time (ns): 1.327707096832065
+Miss Rate (%): 0.6598992360477807
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\015.doduc.din
+Total Hits: 994178
+Total Misses: 12737
+L1 Instruction Cache Hits: 751014, Misses: 4179
+L1 Data Cache Hits: 242071, Misses: 2736
+L2 Cache Hits: 1093, Misses: 5822
+DRAM Accesses: 5822
+Total Energy Consumed (pJ): 10841624560.0
+Average Access Time (ns): 1.578201735002458
+Miss Rate (%): 1.2649528510350923
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\022.li.din
+Total Hits: 996066
+Total Misses: 10992
+L1 Instruction Cache Hits: 739916, Misses: 2338
+L1 Data Cache Hits: 253032, Misses: 4717
+L2 Cache Hits: 3118, Misses: 3937
+DRAM Accesses: 3937
+Total Energy Consumed (pJ): 14652910140.0
+Average Access Time (ns): 1.3909407402552783
+Miss Rate (%): 1.0914962196814881
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\023.eqntott.din
+Total Hits: 998108
+Total Misses: 4087
+L1 Instruction Cache Hits: 769618, Misses: 141
+L1 Data Cache Hits: 228187, Misses: 2054
+L2 Cache Hits: 303, Misses: 1892
+DRAM Accesses: 1892
+Total Energy Consumed (pJ): 17677032020.0
+Average Access Time (ns): 1.1887856155738155
+Miss Rate (%): 0.40780486831405066
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\026.compress.din
+Total Hits: 987432
+Total Misses: 25476
+L1 Instruction Cache Hits: 721177, Misses: 39
+L1 Data Cache Hits: 265915, Misses: 12869
+L2 Cache Hits: 340, Misses: 12568
+DRAM Accesses: 12568
+Total Energy Consumed (pJ): 24784149940.0
+Average Access Time (ns): 2.2407839606361093
+Miss Rate (%): 2.5151346420405405
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\034.mdljdp2.din
+Total Hits: 997897
+Total Misses: 4510
+L1 Instruction Cache Hits: 767547, Misses: 996
+L1 Data Cache Hits: 230046, Misses: 1411
+L2 Cache Hits: 304, Misses: 2103
+DRAM Accesses: 2103
+Total Energy Consumed (pJ): 27888968460.0
+Average Access Time (ns): 1.2097950233787274
+Miss Rate (%): 0.4499170496614649
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\039.wave5.din
+Total Hits: 999196
+Total Misses: 1623
+L1 Instruction Cache Hits: 827147, Misses: 453
+L1 Data Cache Hits: 172034, Misses: 366
+L2 Cache Hits: 15, Misses: 804
+DRAM Accesses: 804
+Total Energy Consumed (pJ): 30496477220.0
+Average Access Time (ns): 1.0803342062850525
+Miss Rate (%): 0.16216718507542324
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\047.tomcatv.din
+Total Hits: 990459
+Total Misses: 19912
+L1 Instruction Cache Hits: 615479, Misses: 65
+L1 Data Cache Hits: 374150, Misses: 10306
+L2 Cache Hits: 830, Misses: 9541
+DRAM Accesses: 9541
+Total Energy Consumed (pJ): 36446831260.0
+Average Access Time (ns): 1.9443065962898778
+Miss Rate (%): 1.9707612352294357
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\048.ora.din
+Total Hits: 999498
+Total Misses: 1008
+L1 Instruction Cache Hits: 799498, Misses: 273
+L1 Data Cache Hits: 200000, Misses: 231
+L2 Cache Hits: 0, Misses: 504
+DRAM Accesses: 504
+Total Energy Consumed (pJ): 38939585620.0
+Average Access Time (ns): 1.0503745104976883
+Miss Rate (%): 0.10074902099537633
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\085.gcc.din
+Total Hits: 982699
+Total Misses: 35455
+L1 Instruction Cache Hits: 766842, Misses: 12673
+L1 Data Cache Hits: 215004, Misses: 5481
+L2 Cache Hits: 853, Misses: 17301
+DRAM Accesses: 17301
+Total Energy Consumed (pJ): 47857715460.0
+Average Access Time (ns): 2.6992517831290748
+Miss Rate (%): 3.4822826409364396
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\089.su2cor.din
+Total Hits: 996506
+Total Misses: 7043
+L1 Instruction Cache Hits: 736746, Misses: 435
+L1 Data Cache Hits: 259705, Misses: 3114
+L2 Cache Hits: 55, Misses: 3494
+DRAM Accesses: 3494
+Total Energy Consumed (pJ): 51494059820.0
+Average Access Time (ns): 1.348164364669787
+Miss Rate (%): 0.7018092788692929
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\090.hydro2d.din
+Total Hits: 987476
+Total Misses: 25265
+L1 Instruction Cache Hits: 747881, Misses: 807
+L1 Data Cache Hits: 239378, Misses: 11934
+L2 Cache Hits: 217, Misses: 12524
+DRAM Accesses: 12524
+Total Energy Consumed (pJ): 58584128980.0
+Average Access Time (ns): 2.236643919817604
+Miss Rate (%): 2.494714838245909
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\093.nasa7.din
+Total Hits: 997091
+Total Misses: 6138
+L1 Instruction Cache Hits: 802595, Misses: 376
+L1 Data Cache Hits: 194176, Misses: 2853
+L2 Cache Hits: 320, Misses: 2909
+DRAM Accesses: 2909
+Total Energy Consumed (pJ): 61997222940.0
+Average Access Time (ns): 1.2899637071894852
+Miss Rate (%): 0.6118244189512065
+Simulating for L1/DRAM general stats: Traces/Spec_Benchmark\094.fpppp.din
+Total Hits: 991866
+Total Misses: 21108
+L1 Instruction Cache Hits: 692814, Misses: 7686
+L1 Data Cache Hits: 294212, Misses: 5288
+L2 Cache Hits: 4840, Misses: 8134
+DRAM Accesses: 8134
+Total Energy Consumed (pJ): 67416701900.0
+Average Access Time (ns): 1.802982110103517
+Miss Rate (%): 2.083765229907184
+
+Preparing simulations for L2 cache associativity level: 2
+Simulating file: Traces/Spec_Benchmark\008.espresso.din with L2 associativity 2
+Total Hits: 999250
+Total Misses: 3389
+L1 Instruction Cache Hits: 807728, Misses: 1640
+L1 Data Cache Hits: 189633, Misses: 999
+L2 Cache Hits: 1889, Misses: 750
+DRAM Accesses: 750
+Total Energy Consumed (pJ): 70930904500.0
+Average Access Time (ns): 1.0853308119871659
+Miss Rate (%): 0.338007996896191
+Simulating file: Traces/Spec_Benchmark\013.spice2g6.din with L2 associativity 2
+Total Hits: 999188
+Total Misses: 4108
+L1 Instruction Cache Hits: 781620, Misses: 2559
+L1 Data Cache Hits: 215088, Misses: 735
+L2 Cache Hits: 2480, Misses: 814
+DRAM Accesses: 814
+Total Energy Consumed (pJ): 74490863100.0
+Average Access Time (ns): 1.0942653015660384
+Miss Rate (%): 0.4094504513124741
+Simulating file: Traces/Spec_Benchmark\015.doduc.din with L2 associativity 2
+Total Hits: 998096
+Total Misses: 8796
+L1 Instruction Cache Hits: 751033, Misses: 4160
+L1 Data Cache Hits: 242075, Misses: 2732
+L2 Cache Hits: 4988, Misses: 1904
+DRAM Accesses: 1904
+Total Energy Consumed (pJ): 78680610460.0
+Average Access Time (ns): 1.2164760470835005
+Miss Rate (%): 0.8735792915228247
+Simulating file: Traces/Spec_Benchmark\022.li.din with L2 associativity 2
+Total Hits: 999336
+Total Misses: 7722
+L1 Instruction Cache Hits: 739916, Misses: 2338
+L1 Data Cache Hits: 253032, Misses: 4717
+L2 Cache Hits: 6388, Misses: 667
+DRAM Accesses: 667
+Total Energy Consumed (pJ): 82287250040.0
+Average Access Time (ns): 1.0942547499746786
+Miss Rate (%): 0.7667880102238401
+Simulating file: Traces/Spec_Benchmark\023.eqntott.din with L2 associativity 2
+Total Hits: 998579
+Total Misses: 3616
+L1 Instruction Cache Hits: 769618, Misses: 141
+L1 Data Cache Hits: 228187, Misses: 2054
+L2 Cache Hits: 774, Misses: 1421
+DRAM Accesses: 1421
+Total Energy Consumed (pJ): 86186805920.0
+Average Access Time (ns): 1.1505495437514655
+Miss Rate (%): 0.3608080263820913
+Simulating file: Traces/Spec_Benchmark\026.compress.din with L2 associativity 2
+Total Hits: 994635
+Total Misses: 18273
+L1 Instruction Cache Hits: 721177, Misses: 39
+L1 Data Cache Hits: 265915, Misses: 12869
+L2 Cache Hits: 7543, Misses: 5365
+DRAM Accesses: 5365
+Total Energy Consumed (pJ): 92753250720.0
+Average Access Time (ns): 1.5806371358504425
+Miss Rate (%): 1.8040137899986968
+Simulating file: Traces/Spec_Benchmark\034.mdljdp2.din with L2 associativity 2
+Total Hits: 999124
+Total Misses: 3283
+L1 Instruction Cache Hits: 767547, Misses: 996
+L1 Data Cache Hits: 230046, Misses: 1411
+L2 Cache Hits: 1531, Misses: 876
+DRAM Accesses: 876
+Total Energy Consumed (pJ): 96449370120.0
+Average Access Time (ns): 1.096994534156286
+Miss Rate (%): 0.3275116793877138
+Simulating file: Traces/Spec_Benchmark\039.wave5.din with L2 associativity 2
+Total Hits: 999338
+Total Misses: 1481
+L1 Instruction Cache Hits: 827147, Misses: 453
+L1 Data Cache Hits: 172034, Misses: 366
+L2 Cache Hits: 157, Misses: 662
+DRAM Accesses: 662
+Total Energy Consumed (pJ): 99974474000.0
+Average Access Time (ns): 1.0694191457196556
+Miss Rate (%): 0.14797880535841146
+Simulating file: Traces/Spec_Benchmark\047.tomcatv.din with L2 associativity 2
+Total Hits: 991278
+Total Misses: 19093
+L1 Instruction Cache Hits: 615479, Misses: 65
+L1 Data Cache Hits: 374150, Misses: 10306
+L2 Cache Hits: 1649, Misses: 8722
+DRAM Accesses: 8722
+Total Energy Consumed (pJ): 108838919960.0
+Average Access Time (ns): 1.9043054481967514
+Miss Rate (%): 1.889701901578727
+Simulating file: Traces/Spec_Benchmark\048.ora.din with L2 associativity 2
+Total Hits: 999549
+Total Misses: 957
+L1 Instruction Cache Hits: 799498, Misses: 273
+L1 Data Cache Hits: 200000, Misses: 231
+L2 Cache Hits: 51, Misses: 453
+DRAM Accesses: 453
+Total Energy Consumed (pJ): 112244058800.0
+Average Access Time (ns): 1.0472920702124724
+Miss Rate (%): 0.09565160029025313
+Simulating file: Traces/Spec_Benchmark\085.gcc.din with L2 associativity 2
+Total Hits: 997284
+Total Misses: 20870
+L1 Instruction Cache Hits: 766842, Misses: 12673
+L1 Data Cache Hits: 215004, Misses: 5481
+L2 Cache Hits: 15438, Misses: 2716
+DRAM Accesses: 2716
+Total Energy Consumed (pJ): 117413979040.0
+Average Access Time (ns): 1.3380785225024898
+Miss Rate (%): 2.04978814599756
+Simulating file: Traces/Spec_Benchmark\089.su2cor.din with L2 associativity 2
+Total Hits: 997502
+Total Misses: 6047
+L1 Instruction Cache Hits: 736746, Misses: 435
+L1 Data Cache Hits: 259705, Misses: 3114
+L2 Cache Hits: 1051, Misses: 2498
+DRAM Accesses: 2498
+Total Energy Consumed (pJ): 122106634200.0
+Average Access Time (ns): 1.2630623915723098
+Miss Rate (%): 0.6025615092038356
+Simulating file: Traces/Spec_Benchmark\090.hydro2d.din with L2 associativity 2
+Total Hits: 994129
+Total Misses: 18612
+L1 Instruction Cache Hits: 747881, Misses: 807
+L1 Data Cache Hits: 239378, Misses: 11934
+L2 Cache Hits: 6870, Misses: 5871
+DRAM Accesses: 5871
+Total Energy Consumed (pJ): 129097745200.0
+Average Access Time (ns): 1.6300367023750397
+Miss Rate (%): 1.8377847840662123
+Simulating file: Traces/Spec_Benchmark\093.nasa7.din with L2 associativity 2
+Total Hits: 998812
+Total Misses: 4417
+L1 Instruction Cache Hits: 802595, Misses: 376
+L1 Data Cache Hits: 194176, Misses: 2853
+L2 Cache Hits: 2041, Misses: 1188
+DRAM Accesses: 1188
+Total Energy Consumed (pJ): 132987188200.0
+Average Access Time (ns): 1.131292057944896
+Miss Rate (%): 0.44027834123614845
+Simulating file: Traces/Spec_Benchmark\094.fpppp.din with L2 associativity 2
+Total Hits: 998752
+Total Misses: 14222
+L1 Instruction Cache Hits: 692814, Misses: 7686
+L1 Data Cache Hits: 294212, Misses: 5288
+L2 Cache Hits: 11726, Misses: 1248
+DRAM Accesses: 1248
+Total Energy Consumed (pJ): 137141646840.0
+Average Access Time (ns): 1.1744329074586317
+Miss Rate (%): 1.4039847024701524
+
+Preparing simulations for L2 cache associativity level: 4
+Simulating file: Traces/Spec_Benchmark\008.espresso.din with L2 associativity 4
+Total Hits: 999254
+Total Misses: 3385
+L1 Instruction Cache Hits: 807728, Misses: 1640
+L1 Data Cache Hits: 189633, Misses: 999
+L2 Cache Hits: 1893, Misses: 746
+DRAM Accesses: 746
+Total Energy Consumed (pJ): 124442157040.0
+Average Access Time (ns): 1.0849318648087696
+Miss Rate (%): 0.3376090497177947
+Simulating file: Traces/Spec_Benchmark\013.spice2g6.din with L2 associativity 4
+Total Hits: 999185
+Total Misses: 4111
+L1 Instruction Cache Hits: 781620, Misses: 2559
+L1 Data Cache Hits: 215088, Misses: 735
+L2 Cache Hits: 2477, Misses: 817
+DRAM Accesses: 817
+Total Energy Consumed (pJ): 128004500760.0
+Average Access Time (ns): 1.0945643160144165
+Miss Rate (%): 0.40974946576085225
+Simulating file: Traces/Spec_Benchmark\015.doduc.din with L2 associativity 4
+Total Hits: 997967
+Total Misses: 8925
+L1 Instruction Cache Hits: 751033, Misses: 4160
+L1 Data Cache Hits: 242075, Misses: 2732
+L2 Cache Hits: 4859, Misses: 2033
+DRAM Accesses: 2033
+Total Energy Consumed (pJ): 132283566040.0
+Average Access Time (ns): 1.229287748835029
+Miss Rate (%): 0.8863909932743531
+Simulating file: Traces/Spec_Benchmark\022.li.din with L2 associativity 4
+Total Hits: 999347
+Total Misses: 7711
+L1 Instruction Cache Hits: 739916, Misses: 2338
+L1 Data Cache Hits: 253032, Misses: 4717
+L2 Cache Hits: 6399, Misses: 656
+DRAM Accesses: 656
+Total Energy Consumed (pJ): 135877915540.0
+Average Access Time (ns): 1.0931624593618243
+Miss Rate (%): 0.7656957196109857
+Simulating file: Traces/Spec_Benchmark\023.eqntott.din with L2 associativity 4
+Total Hits: 998626
+Total Misses: 3569
+L1 Instruction Cache Hits: 769618, Misses: 141
+L1 Data Cache Hits: 228187, Misses: 2054
+L2 Cache Hits: 821, Misses: 1374
+DRAM Accesses: 1374
+Total Energy Consumed (pJ): 139751607900.0
+Average Access Time (ns): 1.1458598376563442
+Miss Rate (%): 0.3561183202869701
+Simulating file: Traces/Spec_Benchmark\026.compress.din with L2 associativity 4
+Total Hits: 994501
+Total Misses: 18407
+L1 Instruction Cache Hits: 721177, Misses: 39
+L1 Data Cache Hits: 265915, Misses: 12869
+L2 Cache Hits: 7409, Misses: 5499
+DRAM Accesses: 5499
+Total Energy Consumed (pJ): 146427530780.0
+Average Access Time (ns): 1.5938663728591342
+Miss Rate (%): 1.8172430270073887
+Simulating file: Traces/Spec_Benchmark\034.mdljdp2.din with L2 associativity 4
+Total Hits: 999149
+Total Misses: 3258
+L1 Instruction Cache Hits: 767547, Misses: 996
+L1 Data Cache Hits: 230046, Misses: 1411
+L2 Cache Hits: 1556, Misses: 851
+DRAM Accesses: 851
+Total Energy Consumed (pJ): 150103707300.0
+Average Access Time (ns): 1.094500537206943
+Miss Rate (%): 0.32501768243837087
+Simulating file: Traces/Spec_Benchmark\039.wave5.din with L2 associativity 4
+Total Hits: 999331
+Total Misses: 1488
+L1 Instruction Cache Hits: 827147, Misses: 453
+L1 Data Cache Hits: 172034, Misses: 366
+L2 Cache Hits: 150, Misses: 669
+DRAM Accesses: 669
+Total Energy Consumed (pJ): 153621602380.0
+Average Access Time (ns): 1.070118572888804
+Miss Rate (%): 0.14867823252755993
+Simulating file: Traces/Spec_Benchmark\047.tomcatv.din with L2 associativity 4
+Total Hits: 991293
+Total Misses: 19078
+L1 Instruction Cache Hits: 615479, Misses: 65
+L1 Data Cache Hits: 374150, Misses: 10306
+L2 Cache Hits: 1664, Misses: 8707
+DRAM Accesses: 8707
+Total Energy Consumed (pJ): 162442822900.0
+Average Access Time (ns): 1.9028208450163355
+Miss Rate (%): 1.888217298398311
+Simulating file: Traces/Spec_Benchmark\048.ora.din with L2 associativity 4
+Total Hits: 999555
+Total Misses: 951
+L1 Instruction Cache Hits: 799498, Misses: 273
+L1 Data Cache Hits: 200000, Misses: 231
+L2 Cache Hits: 57, Misses: 447
+DRAM Accesses: 447
+Total Energy Consumed (pJ): 165841586380.0
+Average Access Time (ns): 1.0466923736589286
+Miss Rate (%): 0.09505190373670921
+Simulating file: Traces/Spec_Benchmark\085.gcc.din with L2 associativity 4
+Total Hits: 997447
+Total Misses: 20707
+L1 Instruction Cache Hits: 766842, Misses: 12673
+L1 Data Cache Hits: 215004, Misses: 5481
+L2 Cache Hits: 15601, Misses: 2553
+DRAM Accesses: 2553
+Total Energy Consumed (pJ): 170938829980.0
+Average Access Time (ns): 1.3220691565323124
+Miss Rate (%): 2.033778780027383
+Simulating file: Traces/Spec_Benchmark\089.su2cor.din with L2 associativity 4
+Total Hits: 997541
+Total Misses: 6008
+L1 Instruction Cache Hits: 736746, Misses: 435
+L1 Data Cache Hits: 259705, Misses: 3114
+L2 Cache Hits: 1090, Misses: 2459
+DRAM Accesses: 2459
+Total Energy Consumed (pJ): 175611112500.0
+Average Access Time (ns): 1.2591761837239637
+Miss Rate (%): 0.5986753013554893
+Simulating file: Traces/Spec_Benchmark\090.hydro2d.din with L2 associativity 4
+Total Hits: 993804
+Total Misses: 18937
+L1 Instruction Cache Hits: 747881, Misses: 807
+L1 Data Cache Hits: 239378, Misses: 11934
+L2 Cache Hits: 6545, Misses: 6196
+DRAM Accesses: 6196
+Total Energy Consumed (pJ): 182804298540.0
+Average Access Time (ns): 1.6621278293265505
+Miss Rate (%): 1.869875911017723
+Simulating file: Traces/Spec_Benchmark\093.nasa7.din with L2 associativity 4
+Total Hits: 998649
+Total Misses: 4580
+L1 Instruction Cache Hits: 802595, Misses: 376
+L1 Data Cache Hits: 194176, Misses: 2853
+L2 Cache Hits: 1878, Misses: 1351
+DRAM Accesses: 1351
+Total Energy Consumed (pJ): 186789893060.0
+Average Access Time (ns): 1.1475395946488787
+Miss Rate (%): 0.45652587794013133
+Simulating file: Traces/Spec_Benchmark\094.fpppp.din with L2 associativity 4
+Total Hits: 998808
+Total Misses: 14166
+L1 Instruction Cache Hits: 692814, Misses: 7686
+L1 Data Cache Hits: 294212, Misses: 5288
+L2 Cache Hits: 11782, Misses: 1192
+DRAM Accesses: 1192
+Total Energy Consumed (pJ): 190932400020.0
+Average Access Time (ns): 1.1689046313133407
+Miss Rate (%): 1.3984564263248611
+
+Preparing simulations for L2 cache associativity level: 8
+Simulating file: Traces/Spec_Benchmark\008.espresso.din with L2 associativity 8
+Total Hits: 999249
+Total Misses: 3390
+L1 Instruction Cache Hits: 807728, Misses: 1640
+L1 Data Cache Hits: 189633, Misses: 999
+L2 Cache Hits: 1888, Misses: 751
+DRAM Accesses: 751
+Total Energy Consumed (pJ): 178204415980.0
+Average Access Time (ns): 1.0854305487817648
+Miss Rate (%): 0.33810773369079
+Simulating file: Traces/Spec_Benchmark\013.spice2g6.din with L2 associativity 8
+Total Hits: 999167
+Total Misses: 4129
+L1 Instruction Cache Hits: 781620, Misses: 2559
+L1 Data Cache Hits: 215088, Misses: 735
+L2 Cache Hits: 2459, Misses: 835
+DRAM Accesses: 835
+Total Energy Consumed (pJ): 181776455700.0
+Average Access Time (ns): 1.0963584027046853
+Miss Rate (%): 0.4115435524511211
+Simulating file: Traces/Spec_Benchmark\015.doduc.din with L2 associativity 8
+Total Hits: 997996
+Total Misses: 8896
+L1 Instruction Cache Hits: 751033, Misses: 4160
+L1 Data Cache Hits: 242075, Misses: 2732
+L2 Cache Hits: 4888, Misses: 2004
+DRAM Accesses: 2004
+Total Energy Consumed (pJ): 186044369460.0
+Average Access Time (ns): 1.2264075988288714
+Miss Rate (%): 0.8835108432681956
+Simulating file: Traces/Spec_Benchmark\022.li.din with L2 associativity 8
+Total Hits: 999312
+Total Misses: 7746
+L1 Instruction Cache Hits: 739916, Misses: 2338
+L1 Data Cache Hits: 253032, Misses: 4717
+L2 Cache Hits: 6364, Misses: 691
+DRAM Accesses: 691
+Total Energy Consumed (pJ): 189659656720.0
+Average Access Time (ns): 1.096637929493634
+Miss Rate (%): 0.7691711897427953
+Simulating file: Traces/Spec_Benchmark\023.eqntott.din with L2 associativity 8
+Total Hits: 998623
+Total Misses: 3572
+L1 Instruction Cache Hits: 769618, Misses: 141
+L1 Data Cache Hits: 228187, Misses: 2054
+L2 Cache Hits: 818, Misses: 1377
+DRAM Accesses: 1377
+Total Energy Consumed (pJ): 193542756600.0
+Average Access Time (ns): 1.146159180598586
+Miss Rate (%): 0.35641766322921187
+Simulating file: Traces/Spec_Benchmark\026.compress.din with L2 associativity 8
+Total Hits: 994418
+Total Misses: 18490
+L1 Instruction Cache Hits: 721177, Misses: 39
+L1 Data Cache Hits: 265915, Misses: 12869
+L2 Cache Hits: 7326, Misses: 5582
+DRAM Accesses: 5582
+Total Energy Consumed (pJ): 200272161240.0
+Average Access Time (ns): 1.6020606017525778
+Miss Rate (%): 1.825437255900832
+Simulating file: Traces/Spec_Benchmark\034.mdljdp2.din with L2 associativity 8
+Total Hits: 999099
+Total Misses: 3308
+L1 Instruction Cache Hits: 767547, Misses: 996
+L1 Data Cache Hits: 230046, Misses: 1411
+L2 Cache Hits: 1506, Misses: 901
+DRAM Accesses: 901
+Total Energy Consumed (pJ): 203973576800.0
+Average Access Time (ns): 1.0994885311056288
+Miss Rate (%): 0.3300056763370567
+Simulating file: Traces/Spec_Benchmark\039.wave5.din with L2 associativity 8
+Total Hits: 999315
+Total Misses: 1504
+L1 Instruction Cache Hits: 827147, Misses: 453
+L1 Data Cache Hits: 172034, Misses: 366
+L2 Cache Hits: 134, Misses: 685
+DRAM Accesses: 685
+Total Energy Consumed (pJ): 207497237000.0
+Average Access Time (ns): 1.0717172635611434
+Miss Rate (%): 0.1502769231998993
+Simulating file: Traces/Spec_Benchmark\047.tomcatv.din with L2 associativity 8
+Total Hits: 991320
+Total Misses: 19051
+L1 Instruction Cache Hits: 615479, Misses: 65
+L1 Data Cache Hits: 374150, Misses: 10306
+L2 Cache Hits: 1691, Misses: 8680
+DRAM Accesses: 8680
+Total Energy Consumed (pJ): 216287762000.0
+Average Access Time (ns): 1.900148559291587
+Miss Rate (%): 1.8855450126735624
+Simulating file: Traces/Spec_Benchmark\048.ora.din with L2 associativity 8
+Total Hits: 999563
+Total Misses: 943
+L1 Instruction Cache Hits: 799498, Misses: 273
+L1 Data Cache Hits: 200000, Misses: 231
+L2 Cache Hits: 65, Misses: 439
+DRAM Accesses: 439
+Total Energy Consumed (pJ): 219683442280.0
+Average Access Time (ns): 1.0458927782542033
+Miss Rate (%): 0.09425230833198402
+Simulating file: Traces/Spec_Benchmark\085.gcc.din with L2 associativity 8
+Total Hits: 997465
+Total Misses: 20689
+L1 Instruction Cache Hits: 766842, Misses: 12673
+L1 Data Cache Hits: 215004, Misses: 5481
+L2 Cache Hits: 15619, Misses: 2535
+DRAM Accesses: 2535
+Total Energy Consumed (pJ): 224768582200.0
+Average Access Time (ns): 1.320301251087753
+Miss Rate (%): 2.0320108745828236
+Simulating file: Traces/Spec_Benchmark\089.su2cor.din with L2 associativity 8
+Total Hits: 997520
+Total Misses: 6029
+L1 Instruction Cache Hits: 736746, Misses: 435
+L1 Data Cache Hits: 259705, Misses: 3114
+L2 Cache Hits: 1069, Misses: 2480
+DRAM Accesses: 2480
+Total Energy Consumed (pJ): 229454149680.0
+Average Access Time (ns): 1.2612687571807655
+Miss Rate (%): 0.6007678748122911
+Simulating file: Traces/Spec_Benchmark\090.hydro2d.din with L2 associativity 8
+Total Hits: 993551
+Total Misses: 19190
+L1 Instruction Cache Hits: 747881, Misses: 807
+L1 Data Cache Hits: 239378, Misses: 11934
+L2 Cache Hits: 6292, Misses: 6449
+DRAM Accesses: 6449
+Total Energy Consumed (pJ): 236791766600.0
+Average Access Time (ns): 1.687109537384188
+Miss Rate (%): 1.894857619075361
+Simulating file: Traces/Spec_Benchmark\093.nasa7.din with L2 associativity 8
+Total Hits: 998625
+Total Misses: 4604
+L1 Instruction Cache Hits: 802595, Misses: 376
+L1 Data Cache Hits: 194176, Misses: 2853
+L2 Cache Hits: 1854, Misses: 1375
+DRAM Accesses: 1375
+Total Energy Consumed (pJ): 240792429280.0
+Average Access Time (ns): 1.1499318699917964
+Miss Rate (%): 0.458918153283049
+Simulating file: Traces/Spec_Benchmark\094.fpppp.din with L2 associativity 8
+Total Hits: 998757
+Total Misses: 14217
+L1 Instruction Cache Hits: 692814, Misses: 7686
+L1 Data Cache Hits: 294212, Misses: 5288
+L2 Cache Hits: 11731, Misses: 1243
+DRAM Accesses: 1243
+Total Energy Consumed (pJ): 244966855760.0
+Average Access Time (ns): 1.1739393113742307
+Miss Rate (%): 1.4034911063857511
+
+L1_INSTRUCTION Cache Summary:
+File: 008.espresso.din - Hits: 3230851, Misses: 6621, Energy (pJ): 101989815000.0, Total Time (ns): 4385388.0
+File: 013.spice2g6.din - Hits: 3126444, Misses: 10272, Energy (pJ): 105872248500.0, Total Time (ns): 4628151.0
+File: 015.doduc.din - Hits: 3004113, Misses: 16659, Energy (pJ): 110025932000.0, Total Time (ns): 5286595.0
+File: 022.li.din - Hits: 2959664, Misses: 9352, Energy (pJ): 113864436000.0, Total Time (ns): 4707992.0
+File: 023.eqntott.din - Hits: 3078472, Misses: 564, Energy (pJ): 117724714000.0, Total Time (ns): 4641520.0
+File: 026.compress.din - Hits: 2884708, Misses: 156, Energy (pJ): 122721110000.0, Total Time (ns): 7107928.0
+File: 034.mdljdp2.din - Hits: 3070188, Misses: 3984, Energy (pJ): 126514002000.0, Total Time (ns): 4511612.0
+File: 039.wave5.din - Hits: 3308588, Misses: 1812, Energy (pJ): 130316754000.0, Total Time (ns): 4295104.0
+File: 047.tomcatv.din - Hits: 2461916, Misses: 260, Energy (pJ): 135413310000.0, Total Time (ns): 7730936.0
+File: 048.ora.din - Hits: 3197992, Misses: 1092, Energy (pJ): 139109038000.0, Total Time (ns): 4192372.0
+File: 085.gcc.din - Hits: 3067368, Misses: 50692, Energy (pJ): 144068550000.0, Total Time (ns): 6800964.0
+File: 089.su2cor.din - Hits: 2946984, Misses: 1740, Energy (pJ): 148117854000.0, Total Time (ns): 5149884.0
+File: 090.hydro2d.din - Hits: 2991524, Misses: 3228, Energy (pJ): 153269158000.0, Total Time (ns): 7307856.0
+File: 093.nasa7.din - Hits: 3210380, Misses: 1504, Energy (pJ): 157242082000.0, Total Time (ns): 4733964.0
+File: 094.fpppp.din - Hits: 2771256, Misses: 30744, Energy (pJ): 161337724000.0, Total Time (ns): 5389284.0
+
+L1_DATA Cache Summary:
+File: 008.espresso.din - Hits: 758529, Misses: 3999, Energy (pJ): 77578672000.0, Total Time (ns): 4385388.0
+File: 013.spice2g6.din - Hits: 860349, Misses: 2943, Energy (pJ): 80324393500.0, Total Time (ns): 4628151.0
+File: 015.doduc.din - Hits: 968296, Misses: 10932, Energy (pJ): 83457305000.0, Total Time (ns): 5286595.0
+File: 022.li.din - Hits: 1012128, Misses: 18868, Energy (pJ): 86326799000.0, Total Time (ns): 4707992.0
+File: 023.eqntott.din - Hits: 912748, Misses: 8216, Energy (pJ): 89108041000.0, Total Time (ns): 4641520.0
+File: 026.compress.din - Hits: 1063660, Misses: 51476, Energy (pJ): 93219573000.0, Total Time (ns): 7107928.0
+File: 034.mdljdp2.din - Hits: 920184, Misses: 5644, Energy (pJ): 95938293000.0, Total Time (ns): 4511612.0
+File: 039.wave5.din - Hits: 688136, Misses: 1464, Energy (pJ): 98430645000.0, Total Time (ns): 4295104.0
+File: 047.tomcatv.din - Hits: 1496600, Misses: 41224, Energy (pJ): 103065025000.0, Total Time (ns): 7730936.0
+File: 048.ora.din - Hits: 800000, Misses: 924, Energy (pJ): 105561673000.0, Total Time (ns): 4192372.0
+File: 085.gcc.din - Hits: 860016, Misses: 21924, Energy (pJ): 109403125000.0, Total Time (ns): 6800964.0
+File: 089.su2cor.din - Hits: 1038820, Misses: 12456, Energy (pJ): 112503705000.0, Total Time (ns): 5149884.0
+File: 090.hydro2d.din - Hits: 957512, Misses: 47736, Energy (pJ): 116660257000.0, Total Time (ns): 7307856.0
+File: 093.nasa7.din - Hits: 776704, Misses: 11412, Energy (pJ): 119421297000.0, Total Time (ns): 4733964.0
+File: 094.fpppp.din - Hits: 1176848, Misses: 21152, Energy (pJ): 122714939000.0, Total Time (ns): 5389284.0
+
+DRAM Cache Summary:
+File: 008.espresso.din - Accesses: 3431, Energy (pJ): 194073935680.0, Total Time (ns): 4385388.0
+File: 013.spice2g6.din - Accesses: 5754, Energy (pJ): 198962038240.0, Total Time (ns): 4628151.0
+File: 015.doduc.din - Accesses: 11763, Energy (pJ): 205775958720.0, Total Time (ns): 5286595.0
+File: 022.li.din - Accesses: 5951, Energy (pJ): 210838085440.0, Total Time (ns): 4707992.0
+File: 023.eqntott.din - Accesses: 6064, Energy (pJ): 216051085440.0, Total Time (ns): 4641520.0
+File: 026.compress.din - Accesses: 29014, Energy (pJ): 229764231680.0, Total Time (ns): 7107928.0
+File: 034.mdljdp2.din - Accesses: 4731, Energy (pJ): 234719815680.0, Total Time (ns): 4511612.0
+File: 039.wave5.din - Accesses: 2820, Energy (pJ): 239003201600.0, Total Time (ns): 4295104.0
+File: 047.tomcatv.din - Accesses: 35650, Energy (pJ): 256774509120.0, Total Time (ns): 7730936.0
+File: 048.ora.din - Accesses: 1843, Energy (pJ): 260746177280.0, Total Time (ns): 4192372.0
+File: 085.gcc.din - Accesses: 25105, Energy (pJ): 272428858880.0, Total Time (ns): 6800964.0
+File: 089.su2cor.din - Accesses: 10931, Energy (pJ): 279821806400.0, Total Time (ns): 5149884.0
+File: 090.hydro2d.din - Accesses: 31040, Energy (pJ): 294709531520.0, Total Time (ns): 7307856.0
+File: 093.nasa7.din - Accesses: 6823, Energy (pJ): 300415623680.0, Total Time (ns): 4733964.0
+File: 094.fpppp.din - Accesses: 11817, Energy (pJ): 307677662720.0, Total Time (ns): 5389284.0
+L2 CACHE Summary by Associativity Level 2:
+File: 008.espresso.din - Hits: 1889, Misses: 750, Energy (pJ): 896946000.0000002, Total Time (ns): 4385388.0
+File: 013.spice2g6.din - Hits: 2480, Misses: 814, Energy (pJ): 1808183600.0000005, Total Time (ns): 4628151.0
+File: 015.doduc.din - Hits: 4988, Misses: 1904, Energy (pJ): 2856991600.0000005, Total Time (ns): 5286595.0
+File: 022.li.din - Hits: 6388, Misses: 667, Energy (pJ): 3809124000.0000005, Total Time (ns): 4707992.0
+File: 023.eqntott.din - Hits: 774, Misses: 1421, Energy (pJ): 4753534000.000001, Total Time (ns): 4641520.0
+File: 026.compress.din - Hits: 7543, Misses: 5365, Energy (pJ): 6163446000.000001, Total Time (ns): 7107928.0
+File: 034.mdljdp2.din - Hits: 1531, Misses: 876, Energy (pJ): 7067224000.000001, Total Time (ns): 4511612.0
+File: 039.wave5.din - Hits: 157, Misses: 662, Energy (pJ): 7931650000.000001, Total Time (ns): 4295104.0
+File: 047.tomcatv.din - Hits: 1649, Misses: 8722, Energy (pJ): 9574604000.000002, Total Time (ns): 7730936.0
+File: 048.ora.din - Hits: 51, Misses: 453, Energy (pJ): 10417901600.000002, Total Time (ns): 4192372.0
+File: 085.gcc.din - Hits: 15438, Misses: 2716, Energy (pJ): 11689337600.000002, Total Time (ns): 6800964.0
+File: 089.su2cor.din - Hits: 1051, Misses: 2498, Energy (pJ): 12738863600.000002, Total Time (ns): 5149884.0
+File: 090.hydro2d.din - Hits: 6870, Misses: 5871, Energy (pJ): 14186917600.000002, Total Time (ns): 7307856.0
+File: 093.nasa7.din - Hits: 2041, Misses: 1188, Energy (pJ): 15127163600.000002, Total Time (ns): 4733964.0
+File: 094.fpppp.din - Hits: 11726, Misses: 1248, Energy (pJ): 16208639600.000002, Total Time (ns): 5389284.0
+L2 CACHE Summary by Associativity Level 4:
+File: 008.espresso.din - Hits: 1893, Misses: 746, Energy (pJ): 896626000.0000001, Total Time (ns): 4385388.0
+File: 013.spice2g6.din - Hits: 2477, Misses: 817, Energy (pJ): 1808103600.0000005, Total Time (ns): 4628151.0
+File: 015.doduc.din - Hits: 4859, Misses: 2033, Energy (pJ): 2867231600.0000005, Total Time (ns): 5286595.0
+File: 022.li.din - Hits: 6399, Misses: 656, Energy (pJ): 3818484000.0000005, Total Time (ns): 4707992.0
+File: 023.eqntott.din - Hits: 821, Misses: 1374, Energy (pJ): 4759134000.000001, Total Time (ns): 4641520.0
+File: 026.compress.din - Hits: 7409, Misses: 5499, Energy (pJ): 6179766000.000001, Total Time (ns): 7107928.0
+File: 034.mdljdp2.din - Hits: 1556, Misses: 851, Energy (pJ): 7081544000.000001, Total Time (ns): 4511612.0
+File: 039.wave5.din - Hits: 150, Misses: 669, Energy (pJ): 7946530000.000001, Total Time (ns): 4295104.0
+File: 047.tomcatv.din - Hits: 1664, Misses: 8707, Energy (pJ): 9588284000.000002, Total Time (ns): 7730936.0
+File: 048.ora.din - Hits: 57, Misses: 447, Energy (pJ): 10431101600.000002, Total Time (ns): 4192372.0
+File: 085.gcc.din - Hits: 15601, Misses: 2553, Energy (pJ): 11689497600.000002, Total Time (ns): 6800964.0
+File: 089.su2cor.din - Hits: 1090, Misses: 2459, Energy (pJ): 12735903600.000002, Total Time (ns): 5149884.0
+File: 090.hydro2d.din - Hits: 6545, Misses: 6196, Energy (pJ): 14209957600.000002, Total Time (ns): 7307856.0
+File: 093.nasa7.din - Hits: 1878, Misses: 1351, Energy (pJ): 15163243600.000002, Total Time (ns): 4733964.0
+File: 094.fpppp.din - Hits: 11782, Misses: 1192, Energy (pJ): 16240239600.000002, Total Time (ns): 5389284.0
+L2 CACHE Summary by Associativity Level 8:
+File: 008.espresso.din - Hits: 1888, Misses: 751, Energy (pJ): 897026000.0, Total Time (ns): 4385388.0
+File: 013.spice2g6.din - Hits: 2459, Misses: 835, Energy (pJ): 1809943600.0, Total Time (ns): 4628151.0
+File: 015.doduc.din - Hits: 4888, Misses: 2004, Energy (pJ): 2866751600.0, Total Time (ns): 5286595.0
+File: 022.li.din - Hits: 6364, Misses: 691, Energy (pJ): 3820804000.0, Total Time (ns): 4707992.0
+File: 023.eqntott.din - Hits: 818, Misses: 1377, Energy (pJ): 4761694000.0, Total Time (ns): 4641520.0
+File: 026.compress.din - Hits: 7326, Misses: 5582, Energy (pJ): 6188966000.0, Total Time (ns): 7107928.0
+File: 034.mdljdp2.din - Hits: 1506, Misses: 901, Energy (pJ): 7094744000.0, Total Time (ns): 4511612.0
+File: 039.wave5.din - Hits: 134, Misses: 685, Energy (pJ): 7961010000.0, Total Time (ns): 4295104.0
+File: 047.tomcatv.din - Hits: 1691, Misses: 8680, Energy (pJ): 9600604000.0, Total Time (ns): 7730936.0
+File: 048.ora.din - Hits: 65, Misses: 439, Energy (pJ): 10442781600.0, Total Time (ns): 4192372.0
+File: 085.gcc.din - Hits: 15619, Misses: 2535, Energy (pJ): 11699737600.0, Total Time (ns): 6800964.0
+File: 089.su2cor.din - Hits: 1069, Misses: 2480, Energy (pJ): 12747823600.0, Total Time (ns): 5149884.0
+File: 090.hydro2d.din - Hits: 6292, Misses: 6449, Energy (pJ): 14242117600.0, Total Time (ns): 7307856.0
+File: 093.nasa7.din - Hits: 1854, Misses: 1375, Energy (pJ): 15197323600.0, Total Time (ns): 4733964.0
+File: 094.fpppp.din - Hits: 11731, Misses: 1243, Energy (pJ): 16278399600.0, Total Time (ns): 5389284.0
+
+Total Energy Consumed across all components (pJ): 228688456160.0
+Total Simulation Time across all components (ns): 1826374.0
